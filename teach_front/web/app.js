@@ -63,6 +63,7 @@ import {
 } from "./modules/runtime_calibration.js";
 
 const TEACH_WEB_VERSION = "20260518-hotfix-model-visible";
+const UI_STATE_STORAGE_KEY = "teach_front_ui_state_v1";
 
 class TeachingDemoApp {
   constructor() {
@@ -113,6 +114,7 @@ class TeachingDemoApp {
 
     this.currentStage = "control";
     this.activeControlJointNames = ["J1", "J2", "J3", "J5"];
+    this.uiStateSaveTimer = null;
 
     this.dom = {};
   }
@@ -131,8 +133,11 @@ class TeachingDemoApp {
     this.updateEefReadout();
     this.refreshFeaTexts();
     drawFeaChartCore(this.dom.chart, this.feaHistory);
-    this.setKinematicsMode("ik");
-    this.setTeachingStage("control");
+    const restored = this.restoreUiState();
+    if (!restored) {
+      this.setKinematicsMode("ik");
+      this.setTeachingStage("control");
+    }
     this.updateKinematicsReadout({ step: "input" });
     this.animate(0);
     this.log("Teaching demo initialized");
@@ -153,6 +158,7 @@ class TeachingDemoApp {
     this.dom.btnStageControl = byId("btnStageControl");
     this.dom.btnStageKinematics = byId("btnStageKinematics");
     this.dom.btnStageFea = byId("btnStageFea");
+    this.dom.btnStageSidebarToggle = byId("btnStageSidebarToggle");
     this.dom.stagePanels = Array.from(document.querySelectorAll("[data-stage-panel]"));
 
     this.dom.jointControls = byId("jointControls");
@@ -208,6 +214,13 @@ class TeachingDemoApp {
     this.dom.btnStageControl?.addEventListener("click", () => this.setTeachingStage("control"));
     this.dom.btnStageKinematics?.addEventListener("click", () => this.setTeachingStage("kinematics"));
     this.dom.btnStageFea?.addEventListener("click", () => this.setTeachingStage("fea"));
+    this.dom.btnStageSidebarToggle?.addEventListener("click", () => {
+      const body = document.body;
+      const collapsed = body.classList.toggle("is-sidebar-collapsed");
+      this.dom.btnStageSidebarToggle.textContent = collapsed ? "»" : "«";
+      this.scheduleUiStateSave();
+      this.onResize();
+    });
 
     this.dom.btnReset?.addEventListener("click", () => this.resetPose());
     this.dom.btnDemo?.addEventListener("click", () => this.runOneClickDemo());
@@ -221,12 +234,14 @@ class TeachingDemoApp {
       for (const helper of this.axisHelpers.values()) {
         helper.visible = visible;
       }
+      this.scheduleUiStateSave();
     });
 
     this.dom.toggleGrid?.addEventListener("change", () => {
       if (this.gridHelper) {
         this.gridHelper.visible = this.dom.toggleGrid.checked;
       }
+      this.scheduleUiStateSave();
     });
 
     this.dom.kinModeIK?.addEventListener("click", () => this.setKinematicsMode("ik"));
@@ -244,6 +259,7 @@ class TeachingDemoApp {
       this.refreshFeaTexts();
       this.fea.enabled = true;
       this.updateFeaVisual(performance.now());
+      this.scheduleUiStateSave();
     });
 
     this.dom.feaExaggeration?.addEventListener("input", () => {
@@ -251,6 +267,7 @@ class TeachingDemoApp {
       this.refreshFeaTexts();
       this.fea.enabled = true;
       this.updateFeaVisual(performance.now());
+      this.scheduleUiStateSave();
     });
 
     this.dom.calibJoint?.addEventListener("change", () => this.syncCalibrationInputs());
@@ -258,6 +275,8 @@ class TeachingDemoApp {
     this.dom.btnWriteSelectedJ?.addEventListener("click", () => this.writeSelectedJoint());
 
     window.addEventListener("resize", () => this.onResize());
+    window.addEventListener("pagehide", () => this.saveUiState());
+    window.addEventListener("beforeunload", () => this.saveUiState());
   }
 
   async loadConfig() {
@@ -438,6 +457,10 @@ class TeachingDemoApp {
     if (options.updateKinematics !== false) {
       this.updateKinematicsReadout({ step: "input" });
     }
+
+    if (options.persist !== false) {
+      this.scheduleUiStateSave();
+    }
   }
 
   resetPose() {
@@ -451,6 +474,7 @@ class TeachingDemoApp {
     if (this.dom.modeText) {
       this.dom.modeText.textContent = "鎵嬪姩鎺у埗";
     }
+    this.scheduleUiStateSave();
     this.log("Robot reset to default pose");
   }
 
@@ -541,15 +565,20 @@ class TeachingDemoApp {
 
     if (t >= 1) {
       this.motion = null;
+      this.scheduleUiStateSave(0);
     }
   }
 
   setTeachingStage(stage) {
-    return setTeachingStageRuntime(this, stage);
+    const result = setTeachingStageRuntime(this, stage);
+    this.scheduleUiStateSave();
+    return result;
   }
 
   setKinematicsMode(mode) {
-    return setKinematicsModeRuntime(this, mode);
+    const result = setKinematicsModeRuntime(this, mode);
+    this.scheduleUiStateSave();
+    return result;
   }
 
   setKinematicsStep(step) {
@@ -589,11 +618,15 @@ class TeachingDemoApp {
   }
 
   runFea() {
-    return runFeaRuntime(this);
+    const result = runFeaRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
   }
 
   toggleFeaAnimation() {
-    return toggleFeaAnimationRuntime(this);
+    const result = toggleFeaAnimationRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
   }
 
   updateFeaVisual(nowMs) {
@@ -629,6 +662,161 @@ class TeachingDemoApp {
 
   onResize() {
     return onResizeRuntime(this);
+  }
+
+  scheduleUiStateSave(delayMs = 120) {
+    if (this.uiStateSaveTimer) {
+      clearTimeout(this.uiStateSaveTimer);
+    }
+    this.uiStateSaveTimer = setTimeout(() => {
+      this.uiStateSaveTimer = null;
+      this.saveUiState();
+    }, Math.max(0, Number(delayMs) || 0));
+  }
+
+  saveUiState() {
+    try {
+      const jointAngles = {};
+      for (const def of this.jointDefs.values()) {
+        const v = Number(this.jointAngles[def.name]);
+        if (Number.isFinite(v)) {
+          jointAngles[def.name] = v;
+        }
+      }
+
+      const payload = {
+        stage: this.currentStage,
+        kinMode: this.kinMode,
+        sidebarCollapsed: document.body.classList.contains("is-sidebar-collapsed"),
+        toggleAxes: Boolean(this.dom.toggleAxes?.checked),
+        toggleGrid: Boolean(this.dom.toggleGrid?.checked),
+        ikTarget: {
+          x: Number(this.dom.ikX?.value),
+          y: Number(this.dom.ikY?.value),
+          z: Number(this.dom.ikZ?.value)
+        },
+        fea: {
+          enabled: Boolean(this.fea.enabled),
+          running: Boolean(this.fea.running),
+          load: Number(this.fea.load),
+          exaggeration: Number(this.fea.exaggeration)
+        },
+        jointAngles
+      };
+
+      localStorage.setItem(UI_STATE_STORAGE_KEY, JSON.stringify(payload));
+    } catch (_err) {
+      // Ignore storage failures (private mode / quota / disabled storage).
+    }
+  }
+
+  loadUiState() {
+    try {
+      const raw = localStorage.getItem(UI_STATE_STORAGE_KEY);
+      if (!raw) {
+        return null;
+      }
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  restoreUiState() {
+    const state = this.loadUiState();
+    if (!state) {
+      return false;
+    }
+
+    if (typeof state.sidebarCollapsed === "boolean") {
+      document.body.classList.toggle("is-sidebar-collapsed", state.sidebarCollapsed);
+      if (this.dom.btnStageSidebarToggle) {
+        this.dom.btnStageSidebarToggle.textContent = state.sidebarCollapsed ? "»" : "«";
+      }
+    }
+
+    if (typeof state.toggleAxes === "boolean" && this.dom.toggleAxes) {
+      this.dom.toggleAxes.checked = state.toggleAxes;
+      for (const helper of this.axisHelpers.values()) {
+        helper.visible = state.toggleAxes;
+      }
+    }
+
+    if (typeof state.toggleGrid === "boolean" && this.dom.toggleGrid) {
+      this.dom.toggleGrid.checked = state.toggleGrid;
+      if (this.gridHelper) {
+        this.gridHelper.visible = state.toggleGrid;
+      }
+    }
+
+    if (state.ikTarget && typeof state.ikTarget === "object") {
+      const x = Number(state.ikTarget.x);
+      const y = Number(state.ikTarget.y);
+      const z = Number(state.ikTarget.z);
+      if (Number.isFinite(x) && this.dom.ikX) this.dom.ikX.value = String(x);
+      if (Number.isFinite(y) && this.dom.ikY) this.dom.ikY.value = String(y);
+      if (Number.isFinite(z) && this.dom.ikZ) this.dom.ikZ.value = String(z);
+    }
+
+    if (state.fea && typeof state.fea === "object") {
+      const load = Number(state.fea.load);
+      const exaggeration = Number(state.fea.exaggeration);
+      if (Number.isFinite(load)) {
+        this.fea.load = load;
+        if (this.dom.feaLoad) {
+          this.dom.feaLoad.value = String(load);
+        }
+      }
+      if (Number.isFinite(exaggeration)) {
+        this.fea.exaggeration = exaggeration;
+        if (this.dom.feaExaggeration) {
+          this.dom.feaExaggeration.value = String(exaggeration);
+        }
+      }
+      if (typeof state.fea.enabled === "boolean") {
+        this.fea.enabled = state.fea.enabled;
+      }
+      if (typeof state.fea.running === "boolean") {
+        this.fea.running = state.fea.running;
+      }
+      if (this.dom.btnPauseFea) {
+        this.dom.btnPauseFea.textContent = this.fea.running ? "鏆傚仠褰㈠彉鍔ㄧ敾" : "鎭㈠褰㈠彉鍔ㄧ敾";
+      }
+      this.refreshFeaTexts();
+      if (this.fea.enabled) {
+        this.updateFeaVisual(performance.now());
+      }
+    }
+
+    if (state.jointAngles && typeof state.jointAngles === "object") {
+      for (const def of this.jointDefs.values()) {
+        const raw = state.jointAngles[def.name];
+        const v = Number(raw);
+        if (Number.isFinite(v)) {
+          this.setJointAngle(def.name, v, {
+            syncUi: true,
+            applyNow: false,
+            updateKinematics: false,
+            persist: false
+          });
+        }
+      }
+      this.applyJointAngles();
+      this.updateEefReadout();
+    }
+
+    if (typeof state.kinMode === "string") {
+      this.setKinematicsMode(state.kinMode);
+    }
+
+    if (typeof state.stage === "string") {
+      this.setTeachingStage(state.stage);
+    }
+
+    this.updateKinematicsReadout({ step: "input" });
+    this.onResize();
+    return true;
   }
 
   animate(now) {

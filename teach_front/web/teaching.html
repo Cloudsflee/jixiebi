@@ -12,33 +12,47 @@
     <link rel="stylesheet" href="./styles-base.css?v=20260518-style-split1" />
     <link rel="stylesheet" href="./styles-teaching.css?v=20260518-style-split1" />
   </head>
-  <body>
+  <body class="teach-page">
     <div class="app-shell teach-shell">
-      <header class="topbar">
-        <div class="title-block">
-          <h1>机械臂教学辅助系统（演示版）</h1>
-          <p>分阶段教学：控制示教 -> 正逆解 -> 有限元</p>
-        </div>
-        <div class="top-actions">
-          <button id="btnDemo" class="btn btn-strong">一键教学演示</button>
-          <button id="btnReset" class="btn">整机复位</button>
-        </div>
-      </header>
+      <div class="teach-frame">
+        <aside class="stage-nav-panel stage-sidebar">
+          <div class="stage-nav-top">
+            <button id="btnStageSidebarToggle" class="stage-collapse-btn" type="button" title="折叠导航" aria-label="折叠导航">«</button>
+          </div>
+          <div class="stage-nav-group">
+            <h2>机械臂教学辅助系统</h2>
+            <p>按教学环节逐步切换</p>
+          </div>
+          <div class="stage-subhead">功能</div>
+          <div class="stage-sidebar-actions">
+            <button id="btnDemo" class="btn btn-strong sidebar-btn" type="button">
+              <span class="sidebar-btn-icon" aria-hidden="true">▶</span>
+              <span class="sidebar-btn-label">一键教学演示</span>
+            </button>
+            <button id="btnReset" class="btn sidebar-btn" type="button">
+              <span class="sidebar-btn-icon" aria-hidden="true">↺</span>
+              <span class="sidebar-btn-label">整机复位</span>
+            </button>
+          </div>
+          <div class="stage-subhead">教学阶段</div>
+          <div class="stage-nav" role="tablist" aria-label="教学阶段导航">
+            <button id="btnStageControl" class="btn stage-btn is-stage-active" type="button">
+              <span class="stage-icon" aria-hidden="true">⚙</span>
+              <span class="stage-label">01 机械臂控制与示教</span>
+            </button>
+            <button id="btnStageKinematics" class="btn stage-btn" type="button">
+              <span class="stage-icon" aria-hidden="true">∑</span>
+              <span class="stage-label">02 正逆解实验</span>
+            </button>
+            <button id="btnStageFea" class="btn stage-btn" type="button">
+              <span class="stage-icon" aria-hidden="true">▦</span>
+              <span class="stage-label">03 有限元演示</span>
+            </button>
+          </div>
+        </aside>
 
-      <section class="panel stage-nav-panel">
-        <div class="stage-nav-head">
-          <h2>教学路径</h2>
-          <p>按教学环节逐步切换，避免信息同屏干扰。</p>
-        </div>
-        <div class="stage-nav" role="tablist" aria-label="教学阶段导航">
-          <button id="btnStageControl" class="btn stage-btn is-stage-active" type="button">01 机械臂控制与示教</button>
-          <button id="btnStageKinematics" class="btn stage-btn" type="button">02 正逆解实验</button>
-          <button id="btnStageFea" class="btn stage-btn" type="button">03 有限元演示</button>
-        </div>
-      </section>
-
-      <main class="teach-layout app-main">
-        <section class="panel viewport-panel">
+      <main class="app-main stage-workspace">
+        <section class="panel viewport-panel viewport-panel-wide">
           <div id="viewport"></div>
           <div class="hud">
             <div class="hud-item">
@@ -56,187 +70,227 @@
           </div>
         </section>
 
-        <section class="panel module-panel">
-          <article class="stage-panel is-stage-active" data-stage-panel="control">
-            <h2>机械臂控制与示教</h2>
-            <p class="tip">
-              先建立关节动作直觉，再进入数学求解与工程评估。
-            </p>
+        <article class="stage-panel is-stage-active panel stage-panel-lab control-panel" data-stage-panel="control">
+          <section class="control-lab">
+            <header class="lab-topbar">
+              <div class="lab-title">
+                <h2>机械臂控制与示教</h2>
+                <p>建立关节动作直觉，完成示教流程与基础标定。</p>
+              </div>
+            </header>
 
-            <h3 class="module-subtitle">关节控制</h3>
-            <div id="jointControls" class="joint-list"></div>
-            <div class="inline-actions">
-              <label class="toggle">
-                <input id="toggleAxes" type="checkbox" checked />
-                显示旋转轴线
-              </label>
-              <label class="toggle">
-                <input id="toggleGrid" type="checkbox" checked />
-                显示地面网格
-              </label>
-            </div>
+            <div class="control-main-grid">
+              <section class="control-col">
+                <h3 class="module-subtitle">关节控制</h3>
+                <div id="jointControls" class="joint-list"></div>
+                <div class="inline-actions">
+                  <label class="toggle">
+                    <input id="toggleAxes" type="checkbox" checked />
+                    显示旋转轴线
+                  </label>
+                  <label class="toggle">
+                    <input id="toggleGrid" type="checkbox" checked />
+                    显示地面网格
+                  </label>
+                </div>
+              </section>
 
-            <h3 class="module-subtitle">教学流程（视频模式）</h3>
-            <div id="lessonList" class="lesson-list"></div>
-            <div class="inline-actions">
-              <button id="btnPrevLesson" class="btn">上一步</button>
-              <button id="btnNextLesson" class="btn">下一步</button>
-              <button id="btnAutoLesson" class="btn btn-strong">自动播放</button>
-            </div>
-            <p id="lessonSpeech" class="speech"></p>
+              <section class="control-col">
+                <h3 class="module-subtitle">教学流程（视频模式）</h3>
+                <div id="lessonList" class="lesson-list"></div>
+                <div class="inline-actions">
+                  <button id="btnPrevLesson" class="btn">上一步</button>
+                  <button id="btnNextLesson" class="btn">下一步</button>
+                  <button id="btnAutoLesson" class="btn btn-strong">自动播放</button>
+                </div>
+                <p id="lessonSpeech" class="speech"></p>
+              </section>
 
-            <h3 class="module-subtitle">关节标定（演示）</h3>
-            <div class="calib">
-              <label>
-                当前关节
-                <select id="calibJoint"></select>
-              </label>
-              <label>
-                Pivot X
-                <input id="pivotX" type="number" step="0.1" />
-              </label>
-              <label>
-                Pivot Y
-                <input id="pivotY" type="number" step="0.1" />
-              </label>
-              <label>
-                Pivot Z
-                <input id="pivotZ" type="number" step="0.1" />
-              </label>
-              <label>
-                Axis X
-                <input id="axisX" type="number" step="0.01" />
-              </label>
-              <label>
-                Axis Y
-                <input id="axisY" type="number" step="0.01" />
-              </label>
-              <label>
-                Axis Z
-                <input id="axisZ" type="number" step="0.01" />
-              </label>
+              <section class="control-col">
+                <h3 class="module-subtitle">关节标定（演示）</h3>
+                <div class="calib">
+                  <label>
+                    当前关节
+                    <select id="calibJoint"></select>
+                  </label>
+                  <label>
+                    Pivot X
+                    <input id="pivotX" type="number" step="0.1" />
+                  </label>
+                  <label>
+                    Pivot Y
+                    <input id="pivotY" type="number" step="0.1" />
+                  </label>
+                  <label>
+                    Pivot Z
+                    <input id="pivotZ" type="number" step="0.1" />
+                  </label>
+                  <label>
+                    Axis X
+                    <input id="axisX" type="number" step="0.01" />
+                  </label>
+                  <label>
+                    Axis Y
+                    <input id="axisY" type="number" step="0.01" />
+                  </label>
+                  <label>
+                    Axis Z
+                    <input id="axisZ" type="number" step="0.01" />
+                  </label>
+                </div>
+                <div class="inline-actions">
+                  <button id="btnApplyFrame" class="btn">应用轴心与轴线</button>
+                  <button id="btnWriteSelectedJ" class="btn btn-strong">Write Selected J</button>
+                </div>
+              </section>
             </div>
-            <div class="inline-actions">
-              <button id="btnApplyFrame" class="btn">应用轴心与轴线</button>
-              <button id="btnWriteSelectedJ" class="btn btn-strong">Write Selected J</button>
-            </div>
-          </article>
+          </section>
+        </article>
 
-          <article class="stage-panel" data-stage-panel="kinematics">
-            <section class="kin-lab">
-              <div class="kin-lab-head">
+        <article class="stage-panel panel stage-panel-lab" data-stage-panel="kinematics">
+          <section class="kin-lab">
+            <header class="lab-topbar">
+              <div class="lab-title">
                 <h2>运动学实验台（FK / IK）</h2>
+                <p>输入 -> 求解 -> 验证，观察目标点与末端结果之间的关系。</p>
+              </div>
+              <div class="lab-toolbar">
                 <div class="kin-mode-switch">
                   <button id="kinModeIK" class="btn mode-btn is-mode-active" type="button">逆解 IK</button>
                   <button id="kinModeFK" class="btn mode-btn" type="button">正解 FK</button>
                   <button id="kinModeCompare" class="btn mode-btn" type="button">对比模式</button>
                 </div>
+                <div class="inline-actions kin-actions">
+                  <button id="btnSolveIK" class="btn btn-strong">执行逆解</button>
+                  <button id="btnSolveFK" class="btn">计算正解</button>
+                  <button id="btnKineDemo" class="btn">路径演示</button>
+                </div>
               </div>
-              <p class="tip">
-                把目标点、关节角和三维端点联动到同一视图，帮助学生理解“输入 -> 求解 -> 验证”。
-              </p>
-              <div class="kin-layout">
-                <div class="kin-col">
-                  <p class="kin-subtitle">输入目标点（robot local）</p>
-                  <div class="ik-grid">
-                    <label>
-                      X (mm)
-                      <input id="ikX" type="number" step="1" value="210" />
-                    </label>
-                    <label>
-                      Y (mm)
-                      <input id="ikY" type="number" step="1" value="80" />
-                    </label>
-                    <label>
-                      Z (mm)
-                      <input id="ikZ" type="number" step="1" value="180" />
-                    </label>
+            </header>
+
+            <div class="kin-main-grid">
+              <section class="kin-col kin-input-col">
+                <p class="kin-subtitle">输入区：目标点（robot local）</p>
+                <div class="ik-grid">
+                  <label>
+                    X (mm)
+                    <input id="ikX" type="number" step="1" value="210" />
+                  </label>
+                  <label>
+                    Y (mm)
+                    <input id="ikY" type="number" step="1" value="80" />
+                  </label>
+                  <label>
+                    Z (mm)
+                    <input id="ikZ" type="number" step="1" value="180" />
+                  </label>
+                </div>
+                <p id="kinInputHint" class="kin-hint">IK: 输入目标点，点击“执行逆解”生成关节角。</p>
+              </section>
+
+              <section class="kin-col kin-step-col">
+                <p class="kin-subtitle">求解流程</p>
+                <ol id="kinSteps" class="kin-steps">
+                  <li data-step="input">1. 输入目标点 / 当前关节角</li>
+                  <li data-step="reachable">2. 可达性判定</li>
+                  <li data-step="solve">3. 求解并应用角度</li>
+                  <li data-step="validate">4. 对比末端误差</li>
+                </ol>
+              </section>
+
+              <section class="kin-col kin-result-col">
+                <p class="kin-subtitle">结果区</p>
+                <div class="kin-metric-grid">
+                  <div class="kin-metric-card">
+                    <span>可达性</span>
+                    <strong id="kinReachable" class="kin-chip">-</strong>
                   </div>
-                  <p id="kinInputHint" class="kin-hint">IK: 输入目标点，点击“执行逆解”生成关节角。</p>
+                  <div class="kin-metric-card">
+                    <span>末端误差</span>
+                    <strong id="kinError" class="kin-chip">-</strong>
+                  </div>
+                  <div class="kin-metric-card">
+                    <span>限位裁剪</span>
+                    <strong id="kinClip" class="kin-chip">-</strong>
+                  </div>
                 </div>
-                <div class="kin-col">
-                  <p class="kin-subtitle">求解步骤</p>
-                  <ol id="kinSteps" class="kin-steps">
-                    <li data-step="input">1. 输入目标点 / 当前关节角</li>
-                    <li data-step="reachable">2. 可达性判定</li>
-                    <li data-step="solve">3. 求解并应用角度</li>
-                    <li data-step="validate">4. 对比末端误差</li>
-                  </ol>
-                </div>
+                <p id="ikStatus" class="status-line">等待求解</p>
+              </section>
+            </div>
+          </section>
+        </article>
+
+        <article class="stage-panel panel stage-panel-lab" data-stage-panel="fea">
+          <section class="fea-lab">
+            <header class="lab-topbar">
+              <div class="lab-title">
+                <h2>有限元演示台</h2>
+                <p>配置工况 -> 观察形变与应力 -> 读取风险评估结果。</p>
               </div>
-              <div class="inline-actions kin-actions">
-                <button id="btnSolveIK" class="btn btn-strong">执行逆解</button>
-                <button id="btnSolveFK" class="btn">计算正解</button>
-                <button id="btnKineDemo" class="btn">路径演示</button>
+              <div class="inline-actions">
+                <button id="btnRunFea" class="btn btn-strong">运行有限元演示</button>
+                <button id="btnPauseFea" class="btn">暂停形变动画</button>
               </div>
-              <div class="kin-metric-grid">
-                <div class="kin-metric-card">
-                  <span>可达性</span>
-                  <strong id="kinReachable" class="kin-chip">-</strong>
+            </header>
+
+            <div class="fea-main-grid">
+              <section class="fea-col fea-controls">
+                <h3 class="module-subtitle">工况输入</h3>
+                <label class="slider-label">
+                  工况载荷（演示值）:
+                  <span id="feaLoadText">50%</span>
+                  <input id="feaLoad" type="range" min="0" max="100" value="50" />
+                </label>
+                <label class="slider-label">
+                  形变夸张倍数:
+                  <span id="feaExaggerationText">120%</span>
+                  <input id="feaExaggeration" type="range" min="20" max="200" value="120" />
+                </label>
+                <div class="legend">
+                  <div><i class="c1"></i>低应力</div>
+                  <div><i class="c2"></i>中应力</div>
+                  <div><i class="c3"></i>高应力</div>
+                  <div><i class="c4"></i>极限区</div>
                 </div>
-                <div class="kin-metric-card">
-                  <span>末端误差</span>
-                  <strong id="kinError" class="kin-chip">-</strong>
+              </section>
+
+              <section class="fea-col fea-metrics">
+                <h3 class="module-subtitle">评估指标</h3>
+                <div class="metric-grid">
+                  <div class="metric">
+                    <span>最大等效应力</span>
+                    <strong id="metricStress">0 MPa</strong>
+                  </div>
+                  <div class="metric">
+                    <span>最大位移</span>
+                    <strong id="metricDisp">0 mm</strong>
+                  </div>
+                  <div class="metric">
+                    <span>安全系数</span>
+                    <strong id="metricSf">0</strong>
+                  </div>
+                  <div class="metric">
+                    <span>风险等级</span>
+                    <strong id="metricRisk">-</strong>
+                  </div>
                 </div>
-                <div class="kin-metric-card">
-                  <span>限位裁剪</span>
-                  <strong id="kinClip" class="kin-chip">-</strong>
-                </div>
+              </section>
+            </div>
+
+            <section class="fea-bottom-grid">
+              <div class="fea-chart-wrap">
+                <h3 class="module-subtitle">趋势曲线</h3>
+                <canvas id="feaChart" width="360" height="180"></canvas>
               </div>
-              <p id="ikStatus" class="status-line">等待求解</p>
+              <div class="fea-log-wrap">
+                <h3 class="module-subtitle">运行日志</h3>
+                <pre id="logs" class="logs"></pre>
+              </div>
             </section>
-          </article>
-
-          <article class="stage-panel" data-stage-panel="fea">
-            <h2>有限元可视化面板</h2>
-            <p class="tip">
-              此模块用于教学演示，支持夸张形变与高对比热力图，便于视频观感。
-            </p>
-            <label class="slider-label">
-              工况载荷（演示值）:
-              <span id="feaLoadText">50%</span>
-              <input id="feaLoad" type="range" min="0" max="100" value="50" />
-            </label>
-            <label class="slider-label">
-              形变夸张倍数:
-              <span id="feaExaggerationText">120%</span>
-              <input id="feaExaggeration" type="range" min="20" max="200" value="120" />
-            </label>
-            <div class="inline-actions">
-              <button id="btnRunFea" class="btn btn-strong">运行有限元演示</button>
-              <button id="btnPauseFea" class="btn">暂停形变动画</button>
-            </div>
-            <div class="metric-grid">
-              <div class="metric">
-                <span>最大等效应力</span>
-                <strong id="metricStress">0 MPa</strong>
-              </div>
-              <div class="metric">
-                <span>最大位移</span>
-                <strong id="metricDisp">0 mm</strong>
-              </div>
-              <div class="metric">
-                <span>安全系数</span>
-                <strong id="metricSf">0</strong>
-              </div>
-              <div class="metric">
-                <span>风险等级</span>
-                <strong id="metricRisk">-</strong>
-              </div>
-            </div>
-            <canvas id="feaChart" width="360" height="180"></canvas>
-            <div class="legend">
-              <div><i class="c1"></i>低应力</div>
-              <div><i class="c2"></i>中应力</div>
-              <div><i class="c3"></i>高应力</div>
-              <div><i class="c4"></i>极限区</div>
-            </div>
-
-            <h3 class="module-subtitle">运行日志</h3>
-            <pre id="logs" class="logs"></pre>
-          </article>
-        </section>
+          </section>
+        </article>
       </main>
+      </div>
     </div>
     <script type="module" src="./app.js?v=20260518-hotfix-model-visible"></script>
   </body>

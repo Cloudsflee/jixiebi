@@ -78,7 +78,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .workspace.is-panel-hidden {
@@ -89,15 +89,18 @@ body {
 .panel-card {
   min-height: 580px;
   min-width: 0;
+  height: 76vh;
 }
 
 .viewer-card {
   padding: 14px;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-card {
   padding: 14px;
-  max-height: 76vh;
+  max-height: none;
   overflow: auto;
 }
 
@@ -126,7 +129,9 @@ body {
 
 #viewer {
   width: 100%;
-  height: 620px;
+  flex: 1;
+  min-height: 460px;
+  height: auto;
   border-radius: 12px;
   border: 1px solid var(--line);
   background:
@@ -631,30 +636,38 @@ button:disabled {
 #log {
   margin: 0;
   min-height: 180px;
-  max-height: 260px;
+  max-height: 320px;
   max-width: 100%;
   overflow: auto;
   border-radius: 10px;
   border: 1px solid #1f2f3f;
   background: var(--log-bg);
   color: var(--log-ink);
-  padding: 10px;
-  font-size: 0.82rem;
-  white-space: pre-wrap;
+  padding: 12px;
+  font-size: 0.81rem;
+  line-height: 1.55;
+  font-family: "JetBrains Mono", "Cascadia Mono", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: pre;
   overflow-wrap: anywhere;
   word-break: break-word;
+  scrollbar-gutter: stable;
 }
 
 @media (max-width: 1280px) {
   .workspace {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
+  .viewer-card,
   .panel-card {
+    height: auto;
     max-height: none;
   }
 
   #viewer {
+    flex: none;
     height: 470px;
   }
 }

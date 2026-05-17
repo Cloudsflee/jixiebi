@@ -73,12 +73,59 @@ import {
 } from "./modules/app_panel_ui.js?v=20260518-035000";
 import { buildJointCardLayout } from "./modules/app_joint_card_layout.js?v=20260518-041500";
 import { attachJointCardBehavior } from "./modules/app_joint_card_bindings.js?v=20260518-043500";
+import { createPresetController } from "./modules/app_preset_controller.js?v=20260518-051500";
+import { applyPresetGlobalSettingsRaw, applyPresetJointToStateRaw } from "./modules/app_preset_apply.js?v=20260518-122500";
+import { writeJointConfigAction } from "./modules/app_config_writer.js?v=20260518-052500";
+import { createMotionCommandController } from "./modules/app_motion_commands.js?v=20260518-124500";
+import { createPollingController } from "./modules/app_polling_controller.js?v=20260518-130500";
+import { createCoordProbeController } from "./modules/app_coord_probe_controller.js?v=20260518-054500";
+import { createCoordProbeVisualController } from "./modules/app_coord_probe_visual.js?v=20260518-073500";
+import { createAxisHelperController } from "./modules/app_axis_helper_controller.js?v=20260518-080500";
+import { createAxisLineEditorStateAdapter } from "./modules/app_axis_line_editor_state.js?v=20260518-084500";
+import { bindAxisLineEditorPointerEventsRaw } from "./modules/app_axis_line_editor_events.js?v=20260518-100500";
+import { pickAxisLineFromPointerEventRaw } from "./modules/app_axis_line_editor_pick.js?v=20260518-102500";
+import {
+  setAxisLineEditorGeometryRaw,
+  refreshAxisLineEditorFromRuntimeRaw
+} from "./modules/app_axis_line_editor_runtime.js?v=20260518-104500";
+import {
+  setAxisLineEditorModeRaw,
+  setAxisLineEditorLinePinnedRaw
+} from "./modules/app_axis_line_editor_mode.js?v=20260518-110500";
+import {
+  notifyAxisLineEditorStateRaw,
+  updateAxisLineEditorModeVisualsRaw
+} from "./modules/app_axis_line_editor_ui.js?v=20260518-112500";
+import {
+  syncAxisLineEditorControlStateRaw,
+  startAxisLineEditorRaw,
+  stopAxisLineEditorRaw
+} from "./modules/app_axis_line_editor_lifecycle.js?v=20260518-114500";
+import { ensureAxisLineEditorGizmoRaw } from "./modules/app_axis_line_editor_gizmo.js?v=20260518-120500";
+import {
+  applyAxisLineEditorAxisWorldRaw,
+  setAxisLineEditorPivotWorldRaw
+} from "./modules/app_axis_line_editor_apply.js?v=20260518-120500";
+import {
+  getAxisLineEditorNdcFromEvent as getAxisLineEditorNdcFromEventRaw,
+  collectAxisLineEditorPickMeshes as collectAxisLineEditorPickMeshesRaw,
+  getAxisLineEditorWorldNormalFromHit as getAxisLineEditorWorldNormalFromHitRaw
+} from "./modules/app_axis_line_editor_helpers.js?v=20260518-093500";
+import { createPhysicalAxisController } from "./modules/app_physical_axis_controller.js?v=20260518-061500";
+import { createDemoController } from "./modules/app_demo_controller.js?v=20260518-063500";
+import { createDemoReadoutController } from "./modules/app_demo_readout_controller.js?v=20260518-071500";
+import { bindServoPanelEvents } from "./modules/app_servo_panel_events.js?v=20260518-065500";
+import { renderServoPanelLayout } from "./modules/app_servo_panel_layout.js?v=20260518-082500";
+import { buildServoPanelFallback as buildServoPanelFallbackView } from "./modules/app_servo_panel_fallback.js?v=20260518-090500";
 import {
   buildPanelHeader,
   buildPanelTools,
   buildViewTools,
   buildPresetTools,
-  buildConfigTools
+  buildConfigTools,
+  buildCoordTools,
+  buildPhysicalTools,
+  buildDemoPanelBlock
 } from "./modules/app_servo_panel_blocks.js?v=20260518-045000";
 
 if (typeof window !== "undefined") {
@@ -143,6 +190,7 @@ let axisLineEditorOnStateChanged = null;
 let coordProbeGroup = null;
 let coordProbeLastWorldPoint = null;
 let coordProbeReadoutUpdater = null;
+let updateCoordReadoutRef = null;
 let demoReadoutUpdater = null;
 let demoOverlayGroup = null;
 let demoTargetMarker = null;
@@ -165,6 +213,36 @@ let positionPollIntervalMs = 350;
 let globalRealtimeSendEnabled = true;
 let loadedJointConfig = null;
 let jointConfigFileHandle = null;
+const coordProbeVisualController = createCoordProbeVisualController({
+  THREE,
+  getScene: () => scene,
+  getCoordProbeGroup: () => coordProbeGroup,
+  setCoordProbeGroup: (group) => { coordProbeGroup = group; },
+  setCoordProbeLastWorldPoint: (point) => { coordProbeLastWorldPoint = point; }
+});
+const axisHelperController = createAxisHelperController({
+  THREE,
+  getScene: () => scene,
+  getAxisHelperGroup: () => axisHelperGroup,
+  setAxisHelperGroup: (group) => { axisHelperGroup = group; },
+  setAxisHelperLine: (line) => { axisHelperLine = line; },
+  setAxisHelperPivotMarker: (marker) => { axisHelperPivotMarker = marker; },
+  getAxisHelperLine: () => axisHelperLine,
+  getAxisHelperPivotMarker: () => axisHelperPivotMarker,
+  getSelectedJointState: () => selectedJointState,
+  getRobotRoot: () => robotRoot,
+  getJointAxisWorld,
+  getJointAxisDisplayLength
+});
+const axisLineEditorStateAdapter = createAxisLineEditorStateAdapter({
+  getAxisLineEditorActive: () => axisLineEditorActive,
+  getAxisLineEditorTarget: () => axisLineEditorTarget,
+  getAxisLineEditorMode: () => axisLineEditorMode,
+  getAxisLineEditorLinePinned: () => axisLineEditorLinePinned,
+  getAxisLineEditorDragging: () => axisLineEditorDragging,
+  setAxisLineEditorOnAxisUpdatedRaw: (handler) => { axisLineEditorOnAxisUpdated = handler; },
+  setAxisLineEditorOnStateChangedRaw: (handler) => { axisLineEditorOnStateChanged = handler; }
+});
 let automaticPinConstraint = null;
 let autoPinConstraintReady = false;
 let demoArmModel = normalizeDemoArmModel(DEFAULT_DEMO_ARM_MODEL);
@@ -200,6 +278,8 @@ const motionLocksRuntime = {
   axisByTarget: Object.create(null),
   parentAxisByTarget: Object.create(null)
 };
+let motionCommandController = null;
+let pollingController = null;
 
 const gatewayBridge = createGatewayBridge({
   getWs: () => ws,
@@ -2429,171 +2509,97 @@ function applyJointVisual(state, pos, options = {}) {
 }
 
 function ensureAxisHelper() {
-  if (axisHelperGroup || !scene) return;
-
-  axisHelperGroup = new THREE.Group();
-  axisHelperGroup.visible = false;
-
-  const lineGeometry = new THREE.BufferGeometry();
-  lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xa8ff2f,
-    transparent: true,
-    opacity: 0.92,
-    depthTest: false
-  });
-
-  axisHelperLine = new THREE.Line(lineGeometry, lineMaterial);
-  axisHelperLine.renderOrder = 1200;
-
-  const markerGeometry = new THREE.SphereGeometry(4, 16, 16);
-  const markerMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00ccff,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
-  });
-  axisHelperPivotMarker = new THREE.Mesh(markerGeometry, markerMaterial);
-  axisHelperPivotMarker.renderOrder = 1201;
-
-  axisHelperGroup.add(axisHelperLine);
-  axisHelperGroup.add(axisHelperPivotMarker);
-  scene.add(axisHelperGroup);
+  axisHelperController.ensureAxisHelper();
 }
 
 function notifyAxisLineEditorState() {
-  if (typeof axisLineEditorOnStateChanged === "function") {
-    axisLineEditorOnStateChanged({
-      active: axisLineEditorActive,
-      target: axisLineEditorTarget,
-      mode: axisLineEditorMode,
-      linePinned: axisLineEditorLinePinned,
-      dragging: axisLineEditorDragging
-    });
-  }
+  notifyAxisLineEditorStateRaw({
+    axisLineEditorOnStateChanged,
+    axisLineEditorActive,
+    axisLineEditorTarget,
+    axisLineEditorMode,
+    axisLineEditorLinePinned,
+    axisLineEditorDragging
+  });
 }
 
 function updateAxisLineEditorModeVisuals() {
-  if (!axisLineEditorLine || !axisLineEditorHandle || !axisLineEditorPivotMarker) return;
-
-  const lineMat = axisLineEditorLine.material;
-  const handleMat = axisLineEditorHandle.material;
-  const pivotMat = axisLineEditorPivotMarker.material;
-
-  if (axisLineEditorMode === "pick") {
-    if (lineMat?.color?.setHex) lineMat.color.setHex(0xffc857);
-    if (handleMat?.color?.setHex) handleMat.color.setHex(0xffc857);
-    if (pivotMat?.color?.setHex) pivotMat.color.setHex(0xfff0a8);
-    axisLineEditorHandle.visible = false;
-    return;
-  }
-
-  if (axisLineEditorMode === "pivot_slide") {
-    if (lineMat?.color?.setHex) lineMat.color.setHex(0x68d7ff);
-    if (handleMat?.color?.setHex) handleMat.color.setHex(0xff3f9f);
-    if (pivotMat?.color?.setHex) pivotMat.color.setHex(0x40ffd0);
-    axisLineEditorHandle.visible = false;
-    return;
-  }
-
-  if (lineMat?.color?.setHex) lineMat.color.setHex(0xff6ad5);
-  if (handleMat?.color?.setHex) handleMat.color.setHex(0xff3f9f);
-  if (pivotMat?.color?.setHex) pivotMat.color.setHex(0xffffff);
-  axisLineEditorHandle.visible = true;
+  updateAxisLineEditorModeVisualsRaw({
+    axisLineEditorLine,
+    axisLineEditorHandle,
+    axisLineEditorPivotMarker,
+    axisLineEditorMode
+  });
 }
 
 function syncAxisLineEditorControlState() {
-  if (!controls) return;
-  const lockOrbitForPick = axisLineEditorActive && axisLineEditorMode === "pick";
-  controls.enabled = !(axisLineEditorDragging || lockOrbitForPick);
+  syncAxisLineEditorControlStateRaw({
+    controls,
+    axisLineEditorActive,
+    axisLineEditorMode,
+    axisLineEditorDragging
+  });
 }
 
 function setAxisLineEditorMode(mode = "direction") {
-  const normalized = mode === "pick" || mode === "pivot_slide" ? mode : "direction";
-  axisLineEditorMode = normalized;
-  updateAxisLineEditorModeVisuals();
-  if (axisLineEditorActive) {
-    setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-  }
-  syncAxisLineEditorControlState();
-  notifyAxisLineEditorState();
+  setAxisLineEditorModeRaw({
+    mode,
+    setAxisLineEditorModeState: (v) => { axisLineEditorMode = v; },
+    updateAxisLineEditorModeVisuals,
+    getAxisLineEditorActive: () => axisLineEditorActive,
+    setAxisLineEditorGeometry,
+    axisLineEditorPivotWorld,
+    axisLineEditorAxisWorld,
+    syncAxisLineEditorControlState,
+    notifyAxisLineEditorState
+  });
 }
 
 function setAxisLineEditorLinePinned(pinned) {
-  axisLineEditorLinePinned = pinned === true;
-  if (axisLineEditorLinePinned) {
-    axisLineEditorLineAnchorWorld.copy(axisLineEditorPivotWorld);
-  }
-  if (axisLineEditorActive) {
-    setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-  }
-  notifyAxisLineEditorState();
+  setAxisLineEditorLinePinnedRaw({
+    pinned,
+    setAxisLineEditorLinePinnedState: (v) => { axisLineEditorLinePinned = v; },
+    axisLineEditorLineAnchorWorld,
+    axisLineEditorPivotWorld,
+    getAxisLineEditorActive: () => axisLineEditorActive,
+    setAxisLineEditorGeometry,
+    axisLineEditorAxisWorld,
+    notifyAxisLineEditorState
+  });
 }
 
 function setAxisLineEditorGeometry(pivotWorld, axisWorld) {
-  if (!axisLineEditorLine || !axisLineEditorHandle || !axisLineEditorPivotMarker) return;
-  const normalizedAxis = axisWorld.clone();
-  if (normalizedAxis.lengthSq() < 1e-10) {
-    normalizedAxis.set(1, 0, 0);
-  }
-  normalizedAxis.normalize();
-  const lineCenter = axisLineEditorLinePinned
-    ? axisLineEditorLineAnchorWorld
-    : pivotWorld;
-  const halfLen = Math.max(40, toFiniteNumber(axisLineEditorLength, 150));
-  const p1 = lineCenter.clone().addScaledVector(normalizedAxis, halfLen);
-  const p2 = lineCenter.clone().addScaledVector(normalizedAxis, -halfLen);
-
-  const posAttr = axisLineEditorLine.geometry.getAttribute("position");
-  posAttr.setXYZ(0, p1.x, p1.y, p1.z);
-  posAttr.setXYZ(1, p2.x, p2.y, p2.z);
-  posAttr.needsUpdate = true;
-  axisLineEditorLine.geometry.computeBoundingSphere();
-
-  axisLineEditorHandle.position.copy(p1);
-  axisLineEditorPivotMarker.position.copy(pivotWorld);
+  setAxisLineEditorGeometryRaw({
+    getAxisLineEditorLine: () => axisLineEditorLine,
+    getAxisLineEditorHandle: () => axisLineEditorHandle,
+    getAxisLineEditorPivotMarker: () => axisLineEditorPivotMarker,
+    axisLineEditorLineAnchorWorld,
+    getAxisLineEditorLinePinned: () => axisLineEditorLinePinned,
+    getAxisLineEditorLength: () => axisLineEditorLength,
+    toFiniteNumber
+  }, pivotWorld, axisWorld);
 }
 
 function refreshAxisLineEditorFromRuntime() {
-  if (!axisLineEditorActive || !axisLineEditorGroup) return;
-  const target = String(axisLineEditorTarget || "");
-  const state = findJointStateByTarget(target);
-  if (!state?.pivotGroup) {
-    axisLineEditorGroup.visible = false;
-    return;
-  }
-  const pivotWorld = state.pivotGroup.getWorldPosition(new THREE.Vector3());
-  const axisParent = getParentAxisVectorForTarget(target);
-  const axisWorld = new THREE.Vector3(axisParent[0], axisParent[1], axisParent[2]);
-  if (state.pivotGroup.parent) {
-    state.pivotGroup.parent.updateWorldMatrix(true, false);
-    const q = new THREE.Quaternion();
-    state.pivotGroup.parent.getWorldQuaternion(q);
-    axisWorld.applyQuaternion(q);
-  }
-  if (axisWorld.lengthSq() < 1e-10) {
-    axisWorld.set(1, 0, 0);
-  }
-  axisWorld.normalize();
-  axisLineEditorLength = getJointAxisDisplayLength(state);
-
-  axisLineEditorPivotWorld.copy(pivotWorld);
-  if (!axisLineEditorLinePinned) {
-    axisLineEditorLineAnchorWorld.copy(pivotWorld);
-  }
-  axisLineEditorAxisWorld.copy(axisWorld);
-  updateAxisLineEditorModeVisuals();
-  setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-  axisLineEditorGroup.visible = true;
+  refreshAxisLineEditorFromRuntimeRaw({
+    getAxisLineEditorActive: () => axisLineEditorActive,
+    getAxisLineEditorGroup: () => axisLineEditorGroup,
+    getAxisLineEditorTarget: () => axisLineEditorTarget,
+    findJointStateByTarget,
+    getParentAxisVectorForTarget,
+    setAxisLineEditorLength: (v) => { axisLineEditorLength = v; },
+    axisLineEditorPivotWorld,
+    getAxisLineEditorLinePinned: () => axisLineEditorLinePinned,
+    axisLineEditorLineAnchorWorld,
+    axisLineEditorAxisWorld,
+    updateAxisLineEditorModeVisuals,
+    setAxisLineEditorGeometry,
+    getJointAxisDisplayLength
+  });
 }
 
 function getAxisLineEditorNdcFromEvent(evt) {
-  if (!renderer?.domElement) return null;
-  const rect = renderer.domElement.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return null;
-  const x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
-  const y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
-  return { x, y };
+  return getAxisLineEditorNdcFromEventRaw(renderer?.domElement, evt);
 }
 
 function getAxisLineEditorTargetState() {
@@ -2605,432 +2611,154 @@ function getAxisLineEditorTargetState() {
 }
 
 function collectAxisLineEditorPickMeshes(target) {
-  const unique = new Set();
-  const meshes = [];
-  const pushFromRoot = (root) => {
-    if (!root) return;
-    root.traverse((obj) => {
-      if (!obj || obj.isMesh !== true || obj.visible === false) return;
-      if (unique.has(obj)) return;
-      unique.add(obj);
-      meshes.push(obj);
-    });
-  };
-
-  const state = findJointStateByTarget(target);
-  pushFromRoot(state?.meshGroup || meshGroupsByTarget?.[target] || null);
-
-  if (meshes.length > 0) {
-    return meshes;
-  }
-
-  Object.values(meshGroupsByTarget || {}).forEach((root) => {
-    pushFromRoot(root);
+  return collectAxisLineEditorPickMeshesRaw({
+    target,
+    findJointStateByTarget,
+    meshGroupsByTarget
   });
-  return meshes;
 }
 
 function getAxisLineEditorWorldNormalFromHit(hit) {
-  if (!hit?.face || !hit?.object) return null;
-
-  const worldNormal = hit.face.normal.clone();
-  const normalMatrix = new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld);
-  worldNormal.applyMatrix3(normalMatrix);
-  if (worldNormal.lengthSq() < 1e-10) {
-    return null;
-  }
-  worldNormal.normalize();
-
-  const box = new THREE.Box3().setFromObject(hit.object);
-  if (!box.isEmpty() && hit.point) {
-    const center = box.getCenter(new THREE.Vector3());
-    const radial = hit.point.clone().sub(center);
-    if (radial.lengthSq() > 1e-10 && worldNormal.dot(radial) < 0) {
-      worldNormal.multiplyScalar(-1);
-    }
-  }
-
-  return worldNormal.normalize();
+  return getAxisLineEditorWorldNormalFromHitRaw(THREE, hit);
 }
 
 function applyAxisLineEditorAxisWorld(target, axisWorld) {
-  const state = findJointStateByTarget(target);
-  if (!state) return false;
-
-  const safeAxis = axisWorld.clone();
-  if (safeAxis.lengthSq() < 1e-10) return false;
-  safeAxis.normalize();
-  axisLineEditorAxisWorld.copy(safeAxis);
-
-  const axisParent = safeAxis.clone();
-  if (state.pivotGroup?.parent) {
-    state.pivotGroup.parent.updateWorldMatrix(true, false);
-    const parentQ = new THREE.Quaternion();
-    state.pivotGroup.parent.getWorldQuaternion(parentQ);
-    axisParent.applyQuaternion(parentQ.invert());
-  }
-  if (axisParent.lengthSq() < 1e-10) return false;
-  axisParent.normalize();
-
-  if (typeof axisLineEditorOnAxisUpdated === "function") {
-    axisLineEditorOnAxisUpdated([axisParent.x, axisParent.y, axisParent.z], target);
-  }
-  return true;
+  return applyAxisLineEditorAxisWorldRaw({
+    target,
+    axisWorld,
+    findJointStateByTarget,
+    axisLineEditorAxisWorld,
+    axisLineEditorOnAxisUpdated
+  });
 }
 
 function setAxisLineEditorPivotWorld(target, pivotWorld) {
-  const state = findJointStateByTarget(target);
-  if (!state) return false;
-
-  const worldPoint = pivotWorld.clone();
-  const pivotSpace = normalizePivotSpace(state.pivotSpace, "world");
-  const storedPoint = pivotSpace === "local" ? worldToRobotLocal(worldPoint) : worldPoint;
-  applyJointPivot(state, [storedPoint.x, storedPoint.y, storedPoint.z]);
-
-  if (state.pivotGroup) {
-    axisLineEditorPivotWorld.copy(state.pivotGroup.getWorldPosition(new THREE.Vector3()));
-  } else {
-    axisLineEditorPivotWorld.copy(worldPoint);
-  }
-
-  if (!axisLineEditorLinePinned) {
-    axisLineEditorLineAnchorWorld.copy(axisLineEditorPivotWorld);
-  }
-  return true;
+  return setAxisLineEditorPivotWorldRaw({
+    target,
+    pivotWorld,
+    findJointStateByTarget,
+    normalizePivotSpace,
+    worldToRobotLocal,
+    applyJointPivot,
+    axisLineEditorPivotWorld,
+    getAxisLineEditorLinePinned: () => axisLineEditorLinePinned,
+    axisLineEditorLineAnchorWorld
+  });
 }
 
 function pickAxisLineFromPointerEvent(evt) {
-  if (!axisLineEditorActive || !camera) return false;
-  const { target, state } = getAxisLineEditorTargetState();
-  if (!state) return false;
-
-  const ndc = getAxisLineEditorNdcFromEvent(evt);
-  if (!ndc) return false;
-  axisLineEditorPointer.set(ndc.x, ndc.y);
-  axisLineEditorRaycaster.setFromCamera(axisLineEditorPointer, camera);
-
-  const candidates = collectAxisLineEditorPickMeshes(target);
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    log("Axis pick failed: no mesh candidate", { target });
-    return false;
-  }
-
-  const hit = axisLineEditorRaycaster.intersectObjects(candidates, true)?.[0] || null;
-  if (!hit?.point) {
-    return false;
-  }
-
-  const outward = getAxisLineEditorWorldNormalFromHit(hit);
-  const inward = outward
-    ? outward.multiplyScalar(-1)
-    : camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(-1);
-  if (inward.lengthSq() < 1e-10) {
-    inward.set(1, 0, 0);
-  }
-  inward.normalize();
-
-  axisLineEditorLineAnchorWorld.copy(hit.point);
-  if (!setAxisLineEditorPivotWorld(target, hit.point)) {
-    return false;
-  }
-  applyAxisLineEditorAxisWorld(target, inward);
-  setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-
-  showCoordinateProbe(axisLineEditorPivotWorld);
-  updateCoordReadout(axisLineEditorPivotWorld, "world");
-  log("Axis generated from point pick (outside->inside)", {
-    target,
-    pivotWorld: [
-      Number(axisLineEditorPivotWorld.x.toFixed(3)),
-      Number(axisLineEditorPivotWorld.y.toFixed(3)),
-      Number(axisLineEditorPivotWorld.z.toFixed(3))
-    ],
-    axisWorld: [
-      Number(axisLineEditorAxisWorld.x.toFixed(4)),
-      Number(axisLineEditorAxisWorld.y.toFixed(4)),
-      Number(axisLineEditorAxisWorld.z.toFixed(4))
-    ]
-  });
-  return true;
+  return pickAxisLineFromPointerEventRaw({
+    getAxisLineEditorActive: () => axisLineEditorActive,
+    getCamera: () => camera,
+    getAxisLineEditorTargetState,
+    getAxisLineEditorNdcFromEvent,
+    axisLineEditorPointer,
+    axisLineEditorRaycaster,
+    collectAxisLineEditorPickMeshes,
+    log,
+    getAxisLineEditorWorldNormalFromHit,
+    axisLineEditorLineAnchorWorld,
+    setAxisLineEditorPivotWorld,
+    applyAxisLineEditorAxisWorld,
+    setAxisLineEditorGeometry,
+    axisLineEditorPivotWorld,
+    axisLineEditorAxisWorld,
+    showCoordinateProbe,
+    updateCoordReadout: updateCoordReadoutRef
+  }, evt);
 }
 
 function bindAxisLineEditorPointerEvents() {
-  if (!renderer?.domElement) return;
-  if (axisLineEditorBoundDom === renderer.domElement) return;
-
-  const dom = renderer.domElement;
-  const onPointerDown = (evt) => {
-    if (!axisLineEditorActive || !camera) return;
-
-    if (axisLineEditorMode === "pick") {
-      const picked = pickAxisLineFromPointerEvent(evt);
-      if (picked) {
-        evt.preventDefault();
-        evt.stopPropagation();
-      }
-      return;
-    }
-
-    const dragObject = axisLineEditorMode === "pivot_slide"
-      ? axisLineEditorPivotMarker
-      : axisLineEditorHandle;
-    if (!dragObject) return;
-
-    const ndc = getAxisLineEditorNdcFromEvent(evt);
-    if (!ndc) return;
-    axisLineEditorPointer.set(ndc.x, ndc.y);
-    axisLineEditorRaycaster.setFromCamera(axisLineEditorPointer, camera);
-    const hit = axisLineEditorRaycaster.intersectObject(dragObject, true);
-    if (!hit || hit.length === 0) return;
-
-    axisLineEditorDragging = true;
-    axisLineEditorDragKind = axisLineEditorMode === "pivot_slide" ? "pivot" : "direction";
-    if (axisLineEditorDragKind === "pivot") {
-      axisLineEditorDragAxisWorld.copy(axisLineEditorAxisWorld);
-      if (axisLineEditorDragAxisWorld.lengthSq() < 1e-10) {
-        axisLineEditorDragAxisWorld.set(1, 0, 0);
-      }
-      axisLineEditorDragAxisWorld.normalize();
-      axisLineEditorDragLinePointWorld.copy(
-        axisLineEditorLinePinned ? axisLineEditorLineAnchorWorld : axisLineEditorPivotWorld
-      );
-
-      const cameraDir = camera.getWorldDirection(new THREE.Vector3()).normalize();
-      const planeNormal = new THREE.Vector3().crossVectors(cameraDir, axisLineEditorDragAxisWorld);
-      if (planeNormal.lengthSq() < 1e-10) {
-        planeNormal.crossVectors(new THREE.Vector3(0, 1, 0), axisLineEditorDragAxisWorld);
-      }
-      if (planeNormal.lengthSq() < 1e-10) {
-        planeNormal.crossVectors(new THREE.Vector3(1, 0, 0), axisLineEditorDragAxisWorld);
-      }
-      if (planeNormal.lengthSq() < 1e-10) {
-        planeNormal.set(0, 0, 1);
-      }
-      planeNormal.normalize();
-      axisLineEditorDragPlane.setFromNormalAndCoplanarPoint(planeNormal, axisLineEditorDragLinePointWorld);
-    }
-
-    syncAxisLineEditorControlState();
-    notifyAxisLineEditorState();
-    try { dom.setPointerCapture(evt.pointerId); } catch {}
-    evt.preventDefault();
-    evt.stopPropagation();
-  };
-
-  const onPointerMove = (evt) => {
-    if (!axisLineEditorActive || !axisLineEditorDragging || !camera) return;
-    const ndc = getAxisLineEditorNdcFromEvent(evt);
-    if (!ndc) return;
-    axisLineEditorPointer.set(ndc.x, ndc.y);
-    axisLineEditorRaycaster.setFromCamera(axisLineEditorPointer, camera);
-
-    const { target, state } = getAxisLineEditorTargetState();
-    if (!state) return;
-
-    if (axisLineEditorDragKind === "pivot") {
-      const hitWorld = new THREE.Vector3();
-      const ok = axisLineEditorRaycaster.ray.intersectPlane(axisLineEditorDragPlane, hitWorld);
-      if (!ok) return;
-
-      const t = hitWorld.clone().sub(axisLineEditorDragLinePointWorld).dot(axisLineEditorDragAxisWorld);
-      const projected = axisLineEditorDragLinePointWorld.clone().addScaledVector(axisLineEditorDragAxisWorld, t);
-      if (!setAxisLineEditorPivotWorld(target, projected)) return;
-      setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-      evt.preventDefault();
-      return;
-    }
-
-    const planeNormal = camera.getWorldDirection(new THREE.Vector3()).normalize();
-    const linePoint = axisLineEditorLinePinned ? axisLineEditorLineAnchorWorld : axisLineEditorPivotWorld;
-    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, linePoint);
-    const hitWorld = new THREE.Vector3();
-    const ok = axisLineEditorRaycaster.ray.intersectPlane(plane, hitWorld);
-    if (!ok) return;
-
-    const axisWorld = hitWorld.sub(linePoint);
-    if (axisWorld.lengthSq() < 1e-10) return;
-    axisWorld.normalize();
-    axisLineEditorAxisWorld.copy(axisWorld);
-    setAxisLineEditorGeometry(axisLineEditorPivotWorld, axisLineEditorAxisWorld);
-
-    applyAxisLineEditorAxisWorld(target, axisWorld);
-    evt.preventDefault();
-  };
-
-  const endDrag = (evt) => {
-    if (!axisLineEditorDragging) return;
-    axisLineEditorDragging = false;
-    axisLineEditorDragKind = "";
-    syncAxisLineEditorControlState();
-    notifyAxisLineEditorState();
-    try { dom.releasePointerCapture(evt.pointerId); } catch {}
-  };
-
-  dom.addEventListener("pointerdown", onPointerDown);
-  dom.addEventListener("pointermove", onPointerMove);
-  dom.addEventListener("pointerup", endDrag);
-  dom.addEventListener("pointercancel", endDrag);
-  axisLineEditorBoundDom = dom;
+  bindAxisLineEditorPointerEventsRaw({
+    rendererDom: renderer?.domElement || null,
+    setAxisLineEditorBoundDom: (dom) => { axisLineEditorBoundDom = dom; },
+    getAxisLineEditorBoundDom: () => axisLineEditorBoundDom,
+    getAxisLineEditorActive: () => axisLineEditorActive,
+    getCamera: () => camera,
+    getAxisLineEditorMode: () => axisLineEditorMode,
+    getAxisLineEditorDragging: () => axisLineEditorDragging,
+    pickAxisLineFromPointerEvent,
+    getAxisLineEditorPivotMarker: () => axisLineEditorPivotMarker,
+    getAxisLineEditorHandle: () => axisLineEditorHandle,
+    getAxisLineEditorNdcFromEvent,
+    axisLineEditorPointer,
+    axisLineEditorRaycaster,
+    setAxisLineEditorDragging: (v) => { axisLineEditorDragging = !!v; },
+    setAxisLineEditorDragKind: (v) => { axisLineEditorDragKind = String(v || ""); },
+    getAxisLineEditorDragKind: () => axisLineEditorDragKind,
+    axisLineEditorDragAxisWorld,
+    axisLineEditorAxisWorld,
+    getAxisLineEditorLinePinned: () => axisLineEditorLinePinned,
+    axisLineEditorLineAnchorWorld,
+    axisLineEditorPivotWorld,
+    axisLineEditorDragLinePointWorld,
+    axisLineEditorDragPlane,
+    syncAxisLineEditorControlState,
+    notifyAxisLineEditorState,
+    getAxisLineEditorTargetState,
+    setAxisLineEditorPivotWorld,
+    setAxisLineEditorGeometry,
+    applyAxisLineEditorAxisWorld
+  });
 }
 
 function ensureAxisLineEditorGizmo() {
-  if (axisLineEditorGroup || !scene) return;
-  axisLineEditorGroup = new THREE.Group();
-  axisLineEditorGroup.visible = false;
-
-  const lineGeometry = new THREE.BufferGeometry();
-  lineGeometry.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3));
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff6ad5,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
+  ensureAxisLineEditorGizmoRaw({
+    getAxisLineEditorGroup: () => axisLineEditorGroup,
+    getScene: () => scene,
+    setAxisLineEditorGroup: (v) => { axisLineEditorGroup = v; },
+    setAxisLineEditorLine: (v) => { axisLineEditorLine = v; },
+    setAxisLineEditorHandle: (v) => { axisLineEditorHandle = v; },
+    setAxisLineEditorPivotMarker: (v) => { axisLineEditorPivotMarker = v; },
+    updateAxisLineEditorModeVisuals
   });
-  axisLineEditorLine = new THREE.Line(lineGeometry, lineMaterial);
-  axisLineEditorLine.renderOrder = 1300;
-
-  const handleGeometry = new THREE.SphereGeometry(6, 20, 20);
-  const handleMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff3f9f,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
-  });
-  axisLineEditorHandle = new THREE.Mesh(handleGeometry, handleMaterial);
-  axisLineEditorHandle.renderOrder = 1301;
-
-  const pivotGeometry = new THREE.SphereGeometry(4, 16, 16);
-  const pivotMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
-  });
-  axisLineEditorPivotMarker = new THREE.Mesh(pivotGeometry, pivotMaterial);
-  axisLineEditorPivotMarker.renderOrder = 1302;
-
-  axisLineEditorGroup.add(axisLineEditorLine);
-  axisLineEditorGroup.add(axisLineEditorHandle);
-  axisLineEditorGroup.add(axisLineEditorPivotMarker);
-  scene.add(axisLineEditorGroup);
-  updateAxisLineEditorModeVisuals();
 }
 
 function startAxisLineEditor(target) {
-  ensureAxisLineEditorGizmo();
-  bindAxisLineEditorPointerEvents();
-  axisLineEditorTarget = String(target || "");
-  axisLineEditorActive = !!axisLineEditorTarget;
-  axisLineEditorDragging = false;
-  axisLineEditorDragKind = "";
-  syncAxisLineEditorControlState();
-  refreshAxisLineEditorFromRuntime();
-  updateAxisLineEditorModeVisuals();
-  if (axisLineEditorGroup) axisLineEditorGroup.visible = axisLineEditorActive;
-  notifyAxisLineEditorState();
+  startAxisLineEditorRaw({
+    ensureAxisLineEditorGizmo,
+    bindAxisLineEditorPointerEvents,
+    target,
+    setAxisLineEditorTarget: (v) => { axisLineEditorTarget = v; },
+    setAxisLineEditorActive: (v) => { axisLineEditorActive = !!v; },
+    setAxisLineEditorDragging: (v) => { axisLineEditorDragging = !!v; },
+    setAxisLineEditorDragKind: (v) => { axisLineEditorDragKind = String(v || ""); },
+    syncAxisLineEditorControlState,
+    refreshAxisLineEditorFromRuntime,
+    updateAxisLineEditorModeVisuals,
+    getAxisLineEditorGroup: () => axisLineEditorGroup,
+    notifyAxisLineEditorState
+  });
 }
 
 function stopAxisLineEditor() {
-  axisLineEditorActive = false;
-  axisLineEditorDragging = false;
-  axisLineEditorDragKind = "";
-  axisLineEditorTarget = "";
-  axisLineEditorMode = "direction";
-  axisLineEditorLinePinned = false;
-  syncAxisLineEditorControlState();
-  if (axisLineEditorGroup) axisLineEditorGroup.visible = false;
-  notifyAxisLineEditorState();
+  stopAxisLineEditorRaw({
+    setAxisLineEditorActive: (v) => { axisLineEditorActive = !!v; },
+    setAxisLineEditorDragging: (v) => { axisLineEditorDragging = !!v; },
+    setAxisLineEditorDragKind: (v) => { axisLineEditorDragKind = String(v || ""); },
+    setAxisLineEditorTarget: (v) => { axisLineEditorTarget = v; },
+    setAxisLineEditorModeState: (v) => { axisLineEditorMode = v; },
+    setAxisLineEditorLinePinnedState: (v) => { axisLineEditorLinePinned = !!v; },
+    syncAxisLineEditorControlState,
+    getAxisLineEditorGroup: () => axisLineEditorGroup,
+    notifyAxisLineEditorState
+  });
 }
 
 function ensureCoordinateProbe() {
-  if (coordProbeGroup || !scene) return;
-
-  coordProbeGroup = new THREE.Group();
-  coordProbeGroup.visible = false;
-
-  const sphereGeometry = new THREE.SphereGeometry(5, 16, 16);
-  const sphereMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff4f7b,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
-  });
-  const marker = new THREE.Mesh(sphereGeometry, sphereMaterial);
-  marker.renderOrder = 1202;
-
-  const lineGeometry = new THREE.BufferGeometry();
-  lineGeometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute(
-      [
-        -14, 0, 0, 14, 0, 0,
-        0, -14, 0, 0, 14, 0,
-        0, 0, -14, 0, 0, 14
-      ],
-      3
-    )
-  );
-  const lineMaterial = new THREE.LineBasicMaterial({
-    color: 0xff9b37,
-    transparent: true,
-    opacity: 0.95,
-    depthTest: false
-  });
-  const cross = new THREE.LineSegments(lineGeometry, lineMaterial);
-  cross.renderOrder = 1203;
-
-  coordProbeGroup.add(marker);
-  coordProbeGroup.add(cross);
-  scene.add(coordProbeGroup);
+  coordProbeVisualController.ensureCoordinateProbe();
 }
 
 function showCoordinateProbe(worldPoint) {
-  ensureCoordinateProbe();
-  if (!coordProbeGroup) return;
-  coordProbeGroup.position.copy(worldPoint);
-  coordProbeGroup.visible = true;
-  coordProbeLastWorldPoint = worldPoint.clone();
+  coordProbeVisualController.showCoordinateProbe(worldPoint);
 }
 
 function hideCoordinateProbe() {
-  if (coordProbeGroup) {
-    coordProbeGroup.visible = false;
-  }
-  coordProbeLastWorldPoint = null;
+  coordProbeVisualController.hideCoordinateProbe();
 }
 
 function updateAxisHelperFromSelectedJoint() {
-  ensureAxisHelper();
-  if (!axisHelperGroup) return;
-
-  if (!selectedJointState?.pivotGroup) {
-    axisHelperGroup.visible = false;
-    return;
-  }
-
-  if (robotRoot) {
-    robotRoot.updateWorldMatrix(true, true);
-  }
-
-  const axis = getJointAxisWorld(selectedJointState);
-  if (!axis) {
-    axisHelperGroup.visible = false;
-    return;
-  }
-
-  const pivotWorld = selectedJointState.pivotGroup.getWorldPosition(new THREE.Vector3());
-  const halfLen = getJointAxisDisplayLength(selectedJointState);
-  const p1 = pivotWorld.clone().addScaledVector(axis, halfLen);
-  const p2 = pivotWorld.clone().addScaledVector(axis, -halfLen);
-
-  const posAttr = axisHelperLine.geometry.getAttribute("position");
-  posAttr.setXYZ(0, p1.x, p1.y, p1.z);
-  posAttr.setXYZ(1, p2.x, p2.y, p2.z);
-  posAttr.needsUpdate = true;
-  axisHelperLine.geometry.computeBoundingSphere();
-
-  axisHelperPivotMarker.position.copy(pivotWorld);
-  axisHelperGroup.visible = true;
+  axisHelperController.updateAxisHelperFromSelectedJoint();
 }
 
 function refreshJointSelectionUI() {
@@ -3084,127 +2812,51 @@ function applyJointPivot(state, pivotArray = null) {
 }
 
 function applyPresetGlobalSettings(preset, ui) {
-  if (!preset || typeof preset !== "object") return;
-  const global = preset.global;
-  if (!global || typeof global !== "object") return;
-
-  positionPollIntervalMs = clampInt(global.positionPollIntervalMs ?? positionPollIntervalMs, 100, 3000);
-  sliderAutoSendDelayMs = clampInt(global.sliderAutoSendDelayMs ?? sliderAutoSendDelayMs, 20, 1200);
-  globalRealtimeSendEnabled = global.globalRealtimeSendEnabled !== undefined
-    ? Boolean(global.globalRealtimeSendEnabled)
-    : globalRealtimeSendEnabled;
-
-  if (ui?.pollInput) ui.pollInput.value = String(positionPollIntervalMs);
-  if (ui?.delayInput) ui.delayInput.value = String(sliderAutoSendDelayMs);
-  if (ui?.globalRealtimeInput) ui.globalRealtimeInput.checked = !!globalRealtimeSendEnabled;
-
-  if (!globalRealtimeSendEnabled) {
-    jointStates.forEach((state) => {
-      if (state.autoSendTimer) {
-        clearTimeout(state.autoSendTimer);
-        state.autoSendTimer = null;
-      }
-    });
-  }
-
-  restartPositionPolling();
+  applyPresetGlobalSettingsRaw({
+    preset,
+    ui,
+    getPositionPollIntervalMs: () => positionPollIntervalMs,
+    getSliderAutoSendDelayMs: () => sliderAutoSendDelayMs,
+    getGlobalRealtimeSendEnabled: () => globalRealtimeSendEnabled,
+    setPositionPollIntervalMs: (v) => { positionPollIntervalMs = v; },
+    setSliderAutoSendDelayMs: (v) => { sliderAutoSendDelayMs = v; },
+    setGlobalRealtimeSendEnabled: (v) => { globalRealtimeSendEnabled = !!v; },
+    clampInt,
+    jointStates,
+    restartPositionPolling
+  });
 }
 
 function applyPresetJointToState(state, presetJoint) {
-  if (!state || !presetJoint || typeof presetJoint !== "object") return;
-
-  const oldId = state.lastServoIdForPoll;
-
-  state.parentTarget = String(
-    presetJoint.parentTarget ?? state.parentTarget ?? defaultParentTargetForTarget(state.target)
-  ).trim().toLowerCase();
-  state.servoId = clampInt(presetJoint.servoId ?? state.servoId, 1, 253);
-  state.lastServoIdForPoll = state.servoId;
-  state.min = clampInt(presetJoint.min ?? state.min, 0, 1000);
-  state.max = clampInt(presetJoint.max ?? state.max, 0, 1000);
-  state.guardMin = clampInt(presetJoint.guardMin ?? state.guardMin, 0, 1000);
-  state.guardMax = clampInt(presetJoint.guardMax ?? state.guardMax, 0, 1000);
-  state.minDeg = clampNumber(presetJoint.minDeg ?? state.minDeg, -360, 360, state.minDeg);
-  state.maxDeg = clampNumber(presetJoint.maxDeg ?? state.maxDeg, -360, 360, state.maxDeg);
-  state.commandScale = normalizeCommandScale(
-    presetJoint.commandScale ?? state.commandScale,
-    estimateDefaultCommandScaleByJointRange(
-      presetJoint.minDeg ?? state.minDeg,
-      presetJoint.maxDeg ?? state.maxDeg
-    )
-  );
-  state.axis = safeAxis(presetJoint.axis ?? state.axis);
-  enforceMotionAxisLockOnState(state, { syncUi: false });
-  state.invert = Boolean(presetJoint.invert ?? state.invert);
-  state.servoMapPoints = cloneServoMapPoints(
-    presetJoint.servoMapPoints ?? presetJoint.angleMap ?? state.servoMapPoints,
-    state
-  );
-  state.backlash = normalizeBacklashConfig(presetJoint.backlash ?? state.backlash);
-  state.pivotSpace = normalizePivotSpace(presetJoint.pivotSpace, state.pivotSpace || "world");
-  state.closureEnabled = presetJoint.closureEnabled !== undefined
-    ? Boolean(presetJoint.closureEnabled)
-    : state.closureEnabled === true;
-  state.closureParentTarget = presetJoint.closureParentTarget !== undefined
-    ? String(presetJoint.closureParentTarget || "")
-    : String(state.closureParentTarget || "");
-  state.closureGain = toFiniteNumber(
-    presetJoint.closureGain ?? state.closureGain,
-    toFiniteNumber(state.closureGain, 1)
-  );
-  state.closureMaxDeg = toFiniteNumber(
-    presetJoint.closureMaxDeg ?? state.closureMaxDeg,
-    toFiniteNumber(state.closureMaxDeg, 0)
-  );
-  state.closureOffsetDeg = toFiniteNumber(
-    presetJoint.closureOffsetDeg ?? state.closureOffsetDeg,
-    toFiniteNumber(state.closureOffsetDeg, 0)
-  );
-  state.closureInvert = presetJoint.closureInvert !== undefined
-    ? Boolean(presetJoint.closureInvert)
-    : state.closureInvert === true;
-  state.defaultPos = clampInt(presetJoint.defaultPos ?? state.defaultPos, 0, 1000);
-  state.defaultTime = clampInt(presetJoint.moveTime ?? presetJoint.defaultTime ?? state.defaultTime, 20, 30000);
-  state.realtimeSendEnabled = presetJoint.realtimeSendEnabled !== undefined
-    ? Boolean(presetJoint.realtimeSendEnabled)
-    : state.realtimeSendEnabled;
-  state.pivot = normalizePivotArray(presetJoint.pivot, state.pivot);
-  state.lastCommandBasePos = null;
-  state.lastCommandDir = 0;
-  state.lastCommandSentPos = null;
-
-  normalizeJointLimits(state);
-  state.defaultPos = clampByGuard(state, state.defaultPos);
-  const pos = clampByGuard(state, presetJoint.currentPos ?? presetJoint.pos ?? state.currentPos);
-
-  if (state.idInput) state.idInput.value = String(state.servoId);
-  if (state.timeInput) state.timeInput.value = String(state.defaultTime);
-  if (state.minInput) state.minInput.value = String(state.min);
-  if (state.maxInput) state.maxInput.value = String(state.max);
-  if (state.guardMinInput) state.guardMinInput.value = String(state.guardMin);
-  if (state.guardMaxInput) state.guardMaxInput.value = String(state.guardMax);
-  if (state.minDegInput) state.minDegInput.value = String(state.minDeg);
-  if (state.maxDegInput) state.maxDegInput.value = String(state.maxDeg);
-  if (state.commandScaleInput) state.commandScaleInput.value = String(state.commandScale);
-  if (state.axisInput) state.axisInput.value = getEffectiveJointAxisDisplayName(state);
-  if (state.invertInput) state.invertInput.checked = !!state.invert;
-  if (state.defaultPosInput) state.defaultPosInput.value = String(state.defaultPos);
-  if (state.realtimeInput) state.realtimeInput.checked = !!state.realtimeSendEnabled;
-  syncJointPivotInputs(state);
-
-  syncJointRangeBounds(state);
-  applyJointPivot(state, state.pivot);
-  applyJointVisual(state, pos);
-
-  if (Number.isFinite(oldId) && oldId !== state.servoId) {
-    const oldStillUsed = jointStates.some((s) => s !== state && getJointServoId(s) === oldId);
-    if (!oldStillUsed) {
-      reachableServoIds.delete(oldId);
-      lastActualIdByQueryId.delete(oldId);
-      lastVoltageById.delete(oldId);
-      lastTempById.delete(oldId);
-    }
-  }
+  applyPresetJointToStateRaw({
+    state,
+    presetJoint,
+    defaultParentTargetForTarget,
+    clampInt,
+    clampNumber,
+    normalizeCommandScale,
+    estimateDefaultCommandScaleByJointRange,
+    safeAxis,
+    enforceMotionAxisLockOnState,
+    cloneServoMapPoints,
+    normalizeBacklashConfig,
+    normalizePivotSpace,
+    toFiniteNumber,
+    normalizePivotArray,
+    normalizeJointLimits,
+    clampByGuard,
+    getEffectiveJointAxisDisplayName,
+    syncJointPivotInputs,
+    syncJointRangeBounds,
+    applyJointPivot,
+    applyJointVisual,
+    jointStates,
+    getJointServoId,
+    reachableServoIds,
+    lastActualIdByQueryId,
+    lastVoltageById,
+    lastTempById
+  });
 }
 
 function shouldRealtimeSend(state) {
@@ -3224,24 +2876,6 @@ function scheduleRealtimeMove(state) {
   }, sliderAutoSendDelayMs);
 }
 
-function sendQueryById(id, silentWhenClosed = true) {
-  expectedQueryId = id;
-  return send({ type: "query", id }, silentWhenClosed);
-}
-
-function scheduleQueryById(id, delayMs = 0) {
-  setTimeout(() => {
-    sendQueryById(id, true);
-  }, Math.max(0, delayMs));
-}
-
-function queryAllPositionsStaggered() {
-  const ids = buildPollIdList();
-  ids.forEach((id, idx) => {
-    scheduleQueryById(id, idx * 80);
-  });
-}
-
 function getJointCommandScale(state) {
   if (!state) return 1;
   const fallback = estimateDefaultCommandScaleByJointRange(state.minDeg, state.maxDeg);
@@ -3256,107 +2890,88 @@ function mapDesiredPosToCommandPos(state, desiredPos) {
   return scaledPos;
 }
 
-function sendPhysicalDependentMoves(sourceState, time, silentWhenClosed = true) {
-  if (!autoPinConstraintReady || automaticPinConstraint?.mode !== "physical_four_bar") return;
-  const sourceTarget = String(sourceState?.target || "");
-  const driverTarget = String(automaticPinConstraint.driverTarget || "");
-  if (!sourceTarget || sourceTarget !== driverTarget) return;
-
-  const delay = Math.max(80, Math.min(2000, time + 80));
-  const deps = Array.isArray(automaticPinConstraint.dependentTargets)
-    ? automaticPinConstraint.dependentTargets
-    : [];
-
-  deps.forEach((target, idx) => {
-    const depState = findJointStateByTarget(target);
-    if (!depState || depState === sourceState) return;
-    if (!shouldRealtimeSend(depState) && silentWhenClosed) return;
-
-    const depId = getJointServoId(depState);
-    const depDesiredPos = getJointPos(depState);
-    const depScaledPos = mapDesiredPosToCommandPos(depState, depDesiredPos);
-    const depPos = compensateCommandPosByBacklash(depState, depScaledPos);
-    const ok = send({ type: "move", id: depId, pos: depPos, time }, silentWhenClosed);
-    if (ok) {
-      scheduleQueryById(depId, delay + (idx + 1) * 35);
-    }
+function getMotionCommandController() {
+  if (motionCommandController) return motionCommandController;
+  motionCommandController = createMotionCommandController({
+    getExpectedQueryId: () => expectedQueryId,
+    setExpectedQueryId: (v) => { expectedQueryId = v; },
+    send,
+    buildPollIdList,
+    getAutoPinConstraintReady: () => autoPinConstraintReady,
+    getAutomaticPinConstraint: () => automaticPinConstraint,
+    findJointStateByTarget,
+    shouldRealtimeSend,
+    getJointServoId,
+    getJointPos,
+    getJointTime,
+    mapDesiredPosToCommandPos,
+    compensateCommandPosByBacklash,
+    jointStates,
+    normalizeDerivedType,
+    applyJointVisual
   });
+  return motionCommandController;
+}
+
+ 
+function sendPhysicalDependentMoves(sourceState, time, silentWhenClosed = true) {
+  getMotionCommandController().sendPhysicalDependentMoves(sourceState, time, silentWhenClosed);
 }
 
 function sendMoveCommand(state, { silentWhenClosed = true } = {}) {
-  const id = getJointServoId(state);
-  const desiredPos = getJointPos(state);
-  const scaledPos = mapDesiredPosToCommandPos(state, desiredPos);
-  const pos = compensateCommandPosByBacklash(state, scaledPos);
-  const time = getJointTime(state);
-
-  const ok = send({ type: "move", id, pos, time }, silentWhenClosed);
-  if (ok) {
-    const delay = Math.max(80, Math.min(2000, time + 80));
-    scheduleQueryById(id, delay);
-    sendPhysicalDependentMoves(state, time, silentWhenClosed);
-  }
+  getMotionCommandController().sendMoveCommand(state, { silentWhenClosed });
 }
 
 function resetArmToDefaults({ silentWhenClosed = false } = {}) {
-  const resetTargets = jointStates.filter((state) => {
-    if (!state || state.uiHidden === true) return false;
-    if (normalizeDerivedType(state.derivedType) === "offset_minus_sum") return false;
-    return true;
-  });
+  getMotionCommandController().resetArmToDefaults({ silentWhenClosed });
+}
 
-  resetTargets.forEach((state, idx) => {
-    if (state.autoSendTimer) {
-      clearTimeout(state.autoSendTimer);
-      state.autoSendTimer = null;
-    }
-    applyJointVisual(state, state.defaultPos);
-    const delay = idx * 95;
-    setTimeout(() => sendMoveCommand(state, { silentWhenClosed }), delay);
-  });
+function sendQueryById(id, silentWhenClosed = true) {
+  return getMotionCommandController().sendQueryById(id, silentWhenClosed);
+}
 
-  const probeIds = buildPollIdList();
-  probeIds.forEach((id, idx) => {
-    const delay = resetTargets.length * 95 + idx * 70 + 200;
-    setTimeout(() => send({ type: "query", id }, true), delay);
-    setTimeout(() => send({ type: "vin", id }, true), delay + 20);
-    setTimeout(() => send({ type: "temp", id }, true), delay + 40);
-    setTimeout(() => send({ type: "id_read", id }, true), delay + 55);
+function scheduleQueryById(id, delayMs = 0) {
+  getMotionCommandController().scheduleQueryById(id, delayMs);
+}
+
+function queryAllPositionsStaggered() {
+  getMotionCommandController().queryAllPositionsStaggered();
+}
+
+function getPollingController() {
+  if (pollingController) return pollingController;
+  pollingController = createPollingController({
+    stopPositionPolling: () => {
+      const timer = pollTimer;
+      if (timer) {
+        clearInterval(timer);
+        pollTimer = null;
+      }
+    },
+    setPollCursor: (v) => { pollCursor = v; },
+    isWsOpen,
+    getJointStatesLength: () => jointStates.length,
+    buildPollIdList,
+    setPollTimer: (v) => { pollTimer = v; },
+    getPollCursor: () => pollCursor,
+    sendQueryById,
+    send,
+    getPositionPollIntervalMs: () => positionPollIntervalMs,
+    getPollTimer: () => pollTimer
   });
+  return pollingController;
 }
 
 function startPositionPolling() {
-  stopPositionPolling();
-  pollCursor = 0;
-
-  pollTimer = setInterval(() => {
-    if (!isWsOpen() || jointStates.length === 0) return;
-
-    const pollIds = buildPollIdList();
-    if (pollIds.length === 0) return;
-
-    const id = pollIds[pollCursor % pollIds.length];
-    pollCursor += 1;
-    sendQueryById(id, true);
-
-    if (pollCursor % (Math.max(1, pollIds.length) * 6) === 0) {
-      send({ type: "vin", id: pollIds[0] }, true);
-      send({ type: "temp", id: pollIds[0] }, true);
-    }
-  }, positionPollIntervalMs);
+  getPollingController().startPositionPolling();
 }
 
 function stopPositionPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
+  getPollingController().stopPositionPolling();
 }
 
 function restartPositionPolling() {
-  if (isWsOpen()) {
-    startPositionPolling();
-  }
+  getPollingController().restartPositionPolling();
 }
 
 function initViewer() {
@@ -3895,723 +3510,118 @@ function initServoPanel(states) {
   const writeAllJointsBtn = configToolsBuilt.writeAllJointsBtn;
   const downloadJointConfigBtn = configToolsBuilt.downloadJointConfigBtn;
 
-  const coordTools = document.createElement("div");
-  coordTools.className = "coord-tools";
+  const coordToolsBuilt = buildCoordTools();
+  const coordTools = coordToolsBuilt.coordTools;
+  const coordSpaceSelect = coordToolsBuilt.coordSpaceSelect;
+  const coordXInput = coordToolsBuilt.coordXInput;
+  const coordYInput = coordToolsBuilt.coordYInput;
+  const coordZInput = coordToolsBuilt.coordZInput;
+  const locateCoordBtn = coordToolsBuilt.locateCoordBtn;
+  const usePivotBtn = coordToolsBuilt.usePivotBtn;
+  const hideCoordBtn = coordToolsBuilt.hideCoordBtn;
+  const alignFrameBtn = coordToolsBuilt.alignFrameBtn;
 
-  const coordSpaceSelect = createSelectInput(
-    [
-      { value: "world", label: "world" },
-      { value: "display_local", label: "display_local" },
-      { value: "robot_local", label: "robot_local" },
-      { value: "selected_parent_local", label: "selected_parent_local" }
-    ],
-    "world"
-  );
-  const coordXInput = createNumberInput(0, -99999, 99999, 0.1);
-  const coordYInput = createNumberInput(0, -99999, 99999, 0.1);
-  const coordZInput = createNumberInput(0, -99999, 99999, 0.1);
+  const physicalToolsBuilt = buildPhysicalTools();
+  const physicalTools = physicalToolsBuilt.physicalTools;
+  const physicalEnabledInput = physicalToolsBuilt.physicalEnabledInput;
+  const physicalSpaceSelect = physicalToolsBuilt.physicalSpaceSelect;
+  const physicalTargetSelect = physicalToolsBuilt.physicalTargetSelect;
+  const physicalPivotXInput = physicalToolsBuilt.physicalPivotXInput;
+  const physicalPivotYInput = physicalToolsBuilt.physicalPivotYInput;
+  const physicalPivotZInput = physicalToolsBuilt.physicalPivotZInput;
+  const physicalJ2LengthInput = physicalToolsBuilt.physicalJ2LengthInput;
+  const physicalJ3LengthInput = physicalToolsBuilt.physicalJ3LengthInput;
+  const physicalReloadBtn = physicalToolsBuilt.physicalReloadBtn;
+  const physicalUseSelectedPivotBtn = physicalToolsBuilt.physicalUseSelectedPivotBtn;
+  const physicalApplyBtn = physicalToolsBuilt.physicalApplyBtn;
+  const axisTargetSelect = physicalToolsBuilt.axisTargetSelect;
+  const axisDirXInput = physicalToolsBuilt.axisDirXInput;
+  const axisDirYInput = physicalToolsBuilt.axisDirYInput;
+  const axisDirZInput = physicalToolsBuilt.axisDirZInput;
+  const axisReloadBtn = physicalToolsBuilt.axisReloadBtn;
+  const axisApplyBtn = physicalToolsBuilt.axisApplyBtn;
+  const axisShowBtn = physicalToolsBuilt.axisShowBtn;
+  const axisDragBtn = physicalToolsBuilt.axisDragBtn;
+  const axisPickBtn = physicalToolsBuilt.axisPickBtn;
+  const axisPinBtn = physicalToolsBuilt.axisPinBtn;
+  const axisSlideBtn = physicalToolsBuilt.axisSlideBtn;
+  const getAxisLineEditorState = axisLineEditorStateAdapter.getAxisLineEditorState;
+  const setAxisLineEditorOnAxisUpdated = axisLineEditorStateAdapter.setAxisLineEditorOnAxisUpdated;
+  const setAxisLineEditorOnStateChanged = axisLineEditorStateAdapter.setAxisLineEditorOnStateChanged;
 
-  const locateCoordBtn = document.createElement("button");
-  locateCoordBtn.textContent = "Locate Coord";
-  locateCoordBtn.title = "Locate point in 3D by input coords and show conversions.";
-  const usePivotBtn = document.createElement("button");
-  usePivotBtn.textContent = "Use Current Pivot";
-  usePivotBtn.title = "Fill coord input from selected joint pivot.";
-  const hideCoordBtn = document.createElement("button");
-  hideCoordBtn.className = "ghost-btn";
-  hideCoordBtn.textContent = "Hide Probe";
-  hideCoordBtn.title = "Hide coordinate probe marker and helper line.";
-  const alignFrameBtn = document.createElement("button");
-  alignFrameBtn.textContent = "Align Frame";
-  alignFrameBtn.title = "Align world frame to current arm reference.";
-  coordTools.append(
-    createControlField("Coord Space", coordSpaceSelect),
-    createControlField("X", coordXInput),
-    createControlField("Y", coordYInput),
-    createControlField("Z", coordZInput),
-    locateCoordBtn,
-    usePivotBtn,
-    hideCoordBtn,
-    alignFrameBtn
-  );
-  setControlFieldLabels(coordTools, ["Coord Space", "X", "Y", "Z"]);
-
-  const physicalTools = document.createElement("div");
-  physicalTools.className = "physical-tools";
-
-  const physicalEnabledInput = document.createElement("input");
-  physicalEnabledInput.type = "checkbox";
-
-  const physicalSpaceSelect = createSelectInput(
-    [
-      { value: "robot_local", label: "robot_local" },
-      { value: "world", label: "world" }
-    ],
-    "robot_local"
-  );
-  const physicalTargetSelect = createSelectInput(
-    [
-      { value: "j2", label: "J2" },
-      { value: "j3", label: "J3" },
-      { value: "j4", label: "J4" }
-    ],
-    "j2"
-  );
-  const physicalPivotXInput = createNumberInput(0, -99999, 99999, 0.1);
-  const physicalPivotYInput = createNumberInput(0, -99999, 99999, 0.1);
-  const physicalPivotZInput = createNumberInput(0, -99999, 99999, 0.1);
-  const physicalJ2LengthInput = createNumberInput(0, 0, 99999, 0.001);
-  const physicalJ3LengthInput = createNumberInput(0, 0, 99999, 0.001);
-
-  const physicalReloadBtn = document.createElement("button");
-  physicalReloadBtn.className = "ghost-btn";
-  physicalReloadBtn.textContent = "Reload Config";
-  physicalReloadBtn.title = "Reload physical values from joints.json.";
-  const physicalUseSelectedPivotBtn = document.createElement("button");
-  physicalUseSelectedPivotBtn.className = "ghost-btn";
-  physicalUseSelectedPivotBtn.textContent = "Use Selected Pivot";
-  physicalUseSelectedPivotBtn.title = "Copy selected joint pivot into physical draft.";
-  const physicalApplyBtn = document.createElement("button");
-  physicalApplyBtn.textContent = "Apply Physical";
-  physicalApplyBtn.title = "Apply and rebuild closed-chain solver (frontend runtime).";
-  const axisTargetSelect = createSelectInput(
-    [
-      { value: "j1", label: "J1" },
-      { value: "j2", label: "J2" },
-      { value: "j3", label: "J3" },
-      { value: "j4", label: "J4" }
-    ],
-    "j2"
-  );
-  const axisDirXInput = createNumberInput(1, -99999, 99999, 0.001);
-  const axisDirYInput = createNumberInput(0, -99999, 99999, 0.001);
-  const axisDirZInput = createNumberInput(0, -99999, 99999, 0.001);
-
-  const axisReloadBtn = document.createElement("button");
-  axisReloadBtn.className = "ghost-btn";
-  axisReloadBtn.textContent = "Read Axis";
-  axisReloadBtn.title = "Read current parent-space axis for selected target.";
-  const axisApplyBtn = document.createElement("button");
-  axisApplyBtn.textContent = "Apply Axis";
-  axisApplyBtn.title = "Apply axis vector to selected target.";
-  const axisShowBtn = document.createElement("button");
-  axisShowBtn.className = "ghost-btn";
-  axisShowBtn.textContent = "Show Axis";
-  axisShowBtn.title = "Focus target joint and show axis.";
-  const axisDragBtn = document.createElement("button");
-  axisDragBtn.className = "ghost-btn";
-  axisDragBtn.textContent = "Drag Axis Dir";
-  axisDragBtn.title = "Drag axis direction in 3D.";
-  const axisPickBtn = document.createElement("button");
-  axisPickBtn.className = "ghost-btn";
-  axisPickBtn.textContent = "Pick Axis (Out->In)";
-  axisPickBtn.title = "Pick a surface point and generate axis from outward normal reversed.";
-  const axisPinBtn = document.createElement("button");
-  axisPinBtn.className = "ghost-btn";
-  axisPinBtn.textContent = "Pin Line Pos";
-  axisPinBtn.title = "Keep line position fixed while moving pivot.";
-  const axisSlideBtn = document.createElement("button");
-  axisSlideBtn.className = "ghost-btn";
-  axisSlideBtn.textContent = "Slide Pivot On Axis";
-  axisSlideBtn.title = "Move pivot only along current axis line.";
-  const physicalDraft = {
-    enabled: false,
-    type: "four_bar_dual_hole",
-    space: "robot_local",
-    planeAxis: "z",
-    driverTarget: "j2",
-    branch: "closest",
-    joints: {
-      j2: { target: "j2", pivot: [0, 0, 0], activeLinkLength: 0, angleOffsetDeg: 0 },
-      j3: { target: "j3", pivot: [0, 0, 0], activeLinkLength: 0, angleOffsetDeg: 0 },
-      j4: { target: "j4", pivot: [0, 0, 0], angleOffsetDeg: 0 }
-    },
-    endEffector: {
-      yellowHoleLocal: [0, 0, 0],
-      greenHoleLocal: [0, 0, 0]
-    }
-  };
-
-  const pullPhysicalDraftFromConfig = () => {
-    const sourceConfig = loadedJointConfig && typeof loadedJointConfig === "object"
-      ? loadedJointConfig
-      : FALLBACK_CONFIG;
-    const raw = sourceConfig?.physicalKinematics && typeof sourceConfig.physicalKinematics === "object"
-      ? sourceConfig.physicalKinematics
-      : {};
-
-    physicalDraft.enabled = raw.enabled === true;
-    physicalDraft.type = String(raw.type || "four_bar_dual_hole");
-    physicalDraft.space = normalizePhysicalPointSpace(raw.space, "robot_local");
-    physicalDraft.planeAxis = safeAxis(raw.planeAxis || "z");
-    physicalDraft.driverTarget = String(raw.driverTarget || "j2");
-    physicalDraft.branch = String(raw.branch || "closest");
-    physicalDraft.endEffector.yellowHoleLocal = normalizePivotArray(raw?.endEffector?.yellowHoleLocal, [0, 0, 0]);
-    physicalDraft.endEffector.greenHoleLocal = normalizePivotArray(raw?.endEffector?.greenHoleLocal, [0, 0, 0]);
-
-    const jointsRaw = raw?.joints && typeof raw.joints === "object" ? raw.joints : {};
-    ["j2", "j3", "j4"].forEach((key) => {
-      const jointRaw = jointsRaw[key] && typeof jointsRaw[key] === "object" ? jointsRaw[key] : {};
-      const target = String(jointRaw.target || key);
-      let pivot = parseOptionalVec3(jointRaw.pivot);
-      if (!pivot) {
-        const state = findJointStateByTarget(target);
-        if (state) {
-          const pivotWorld = getJointPivotWorldFromState(state);
-          const convertedPivot = convertWorldPointToPhysicalSpace(pivotWorld, physicalDraft.space);
-          pivot = [convertedPivot.x, convertedPivot.y, convertedPivot.z];
-        } else {
-          pivot = [0, 0, 0];
-        }
-      }
-
-      const existingLength = toFiniteNumber(physicalDraft.joints[key]?.activeLinkLength, 0);
-      const parsedLength = Math.max(0, toFiniteNumber(jointRaw.activeLinkLength, existingLength));
-      physicalDraft.joints[key] = {
-        target,
-        pivot: normalizePivotArray(pivot, [0, 0, 0]),
-        activeLinkLength: key === "j4" ? 0 : parsedLength,
-        angleOffsetDeg: toFiniteNumber(jointRaw.angleOffsetDeg, 0)
-      };
-    });
-  };
-
-  const captureActivePhysicalPivotInputs = () => {
-    const key = String(physicalTargetSelect.value || "j2");
-    const entry = physicalDraft.joints[key];
-    if (!entry) return;
-    const current = normalizePivotArray(entry.pivot, [0, 0, 0]);
-    entry.pivot = [
-      clampNumber(physicalPivotXInput.value, -99999, 99999, current[0]),
-      clampNumber(physicalPivotYInput.value, -99999, 99999, current[1]),
-      clampNumber(physicalPivotZInput.value, -99999, 99999, current[2])
-    ];
-  };
-
-  const syncPhysicalInputsFromDraft = () => {
-    physicalEnabledInput.checked = physicalDraft.enabled === true;
-    physicalSpaceSelect.value = normalizePhysicalPointSpace(physicalDraft.space, "robot_local");
-
-    const key = String(physicalTargetSelect.value || "j2");
-    const entry = physicalDraft.joints[key] || physicalDraft.joints.j2;
-    const pivot = normalizePivotArray(entry?.pivot, [0, 0, 0]);
-    physicalPivotXInput.value = String(pivot[0]);
-    physicalPivotYInput.value = String(pivot[1]);
-    physicalPivotZInput.value = String(pivot[2]);
-
-    physicalJ2LengthInput.value = String(Math.max(0, toFiniteNumber(physicalDraft.joints.j2?.activeLinkLength, 0)));
-    physicalJ3LengthInput.value = String(Math.max(0, toFiniteNumber(physicalDraft.joints.j3?.activeLinkLength, 0)));
-  };
-
-  const syncAxisInputsFromRuntime = () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const axis = getParentAxisVectorForTarget(target);
-    axisDirXInput.value = String(axis[0]);
-    axisDirYInput.value = String(axis[1]);
-    axisDirZInput.value = String(axis[2]);
-  };
-
-  const applyAxisInputsToRuntime = () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const fallback = getParentAxisVectorForTarget(target);
-    const normalized = normalizeAxisVectorArray(
-      [
-        clampNumber(axisDirXInput.value, -99999, 99999, fallback[0]),
-        clampNumber(axisDirYInput.value, -99999, 99999, fallback[1]),
-        clampNumber(axisDirZInput.value, -99999, 99999, fallback[2])
-      ],
-      fallback
-    );
-
-    const applied = setParentAxisVectorForTarget(target, normalized, {
-      updateConfig: true,
-      applyVisual: true
-    }) || normalized;
-    axisDirXInput.value = String(applied[0]);
-    axisDirYInput.value = String(applied[1]);
-    axisDirZInput.value = String(applied[2]);
-
-    log("Parent-axis line updated", {
-      target,
-      axisParent: applied.map((v) => Number(v.toFixed(6)))
-    });
-  };
-
-  const syncAxisEditorButtons = () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const editingThis = axisLineEditorActive && axisLineEditorTarget === target;
-    const mode = editingThis ? axisLineEditorMode : "";
-  axisDragBtn.textContent = "Drag Axis Dir";
-  axisPickBtn.textContent = "Pick Axis (Out->In)";
-  axisSlideBtn.textContent = "Slide Pivot On Axis";
-  axisPinBtn.textContent = "Pin Line Pos";
-    axisPinBtn.disabled = !editingThis;
-  };
-
-  axisLineEditorOnAxisUpdated = (axisParent, target) => {
-    const t = String(target || "j2");
-    if (axisTargetSelect.value !== t) {
-      axisTargetSelect.value = t;
-    }
-    axisDirXInput.value = String(axisParent[0]);
-    axisDirYInput.value = String(axisParent[1]);
-    axisDirZInput.value = String(axisParent[2]);
-    const applied = setParentAxisVectorForTarget(t, axisParent, {
-      updateConfig: true,
-      applyVisual: true
-    }) || axisParent;
-    axisDirXInput.value = String(applied[0]);
-    axisDirYInput.value = String(applied[1]);
-    axisDirZInput.value = String(applied[2]);
-    syncAxisEditorButtons();
-  };
-
-  axisLineEditorOnStateChanged = () => {
-    syncAxisEditorButtons();
-  };
-
-  const convertPhysicalDraftSpace = (nextSpace) => {
-    const prevSpace = normalizePhysicalPointSpace(physicalDraft.space, "robot_local");
-    const normalizedNext = normalizePhysicalPointSpace(nextSpace, prevSpace);
-    if (prevSpace === normalizedNext) {
-      physicalDraft.space = normalizedNext;
-      return;
-    }
-
-    ["j2", "j3", "j4"].forEach((key) => {
-      const entry = physicalDraft.joints[key];
-      if (!entry) return;
-      const current = toVec3(normalizePivotArray(entry.pivot, [0, 0, 0]));
-      const worldPoint = prevSpace === "world" ? current : robotLocalToWorld(current);
-      const nextPoint = normalizedNext === "world" ? worldPoint : worldToRobotLocal(worldPoint);
-      entry.pivot = [nextPoint.x, nextPoint.y, nextPoint.z];
-    });
-
-    physicalDraft.space = normalizedNext;
-  };
-
-  const applyPhysicalDraftToRuntime = () => {
-    captureActivePhysicalPivotInputs();
-    physicalDraft.enabled = !!physicalEnabledInput.checked;
-    physicalDraft.joints.j2.activeLinkLength = Math.max(0, clampNumber(
-      physicalJ2LengthInput.value,
-      0,
-      99999,
-      toFiniteNumber(physicalDraft.joints.j2.activeLinkLength, 0)
-    ));
-    physicalDraft.joints.j3.activeLinkLength = Math.max(0, clampNumber(
-      physicalJ3LengthInput.value,
-      0,
-      99999,
-      toFiniteNumber(physicalDraft.joints.j3.activeLinkLength, 0)
-    ));
-
-    const nextConfig = cloneConfig(loadedJointConfig || FALLBACK_CONFIG);
-    const physical = ensurePhysicalKinematicsConfig(nextConfig);
-    if (!physical) return;
-
-    physical.enabled = physicalDraft.enabled;
-    physical.type = physicalDraft.type;
-    physical.space = normalizePhysicalPointSpace(physicalDraft.space, "robot_local");
-    physical.planeAxis = safeAxis(physicalDraft.planeAxis || "z");
-    physical.driverTarget = String(physicalDraft.driverTarget || "j2");
-    physical.branch = String(physicalDraft.branch || "closest");
-    physical.endEffector.yellowHoleLocal = normalizePivotArray(physicalDraft.endEffector.yellowHoleLocal, [0, 0, 0]);
-    physical.endEffector.greenHoleLocal = normalizePivotArray(physicalDraft.endEffector.greenHoleLocal, [0, 0, 0]);
-
-    ["j2", "j3", "j4"].forEach((key) => {
-      const src = physicalDraft.joints[key] || {};
-      const entry = ensurePhysicalJointConfigEntry(physical, key);
-      entry.target = String(src.target || entry.target || key);
-      entry.pivot = normalizePivotArray(src.pivot, [0, 0, 0]);
-      entry.angleOffsetDeg = toFiniteNumber(src.angleOffsetDeg, toFiniteNumber(entry.angleOffsetDeg, 0));
-      if (key === "j2" || key === "j3") {
-        entry.activeLinkLength = Math.max(0, toFiniteNumber(src.activeLinkLength, toFiniteNumber(entry.activeLinkLength, 0)));
-      }
-    });
-
-    loadedJointConfig = nextConfig;
-    applyMotionLocksFromConfig(loadedJointConfig);
-
-    const pointSpace = normalizePhysicalPointSpace(physical.space, "robot_local");
-    ["j2", "j3", "j4"].forEach((key) => {
-      const entry = physical.joints?.[key];
-      if (!entry) return;
-      const state = findJointStateByTarget(String(entry.target || key));
-      if (!state) return;
-      const pivotConfig = toVec3(normalizePivotArray(entry.pivot, [0, 0, 0]));
-      const pivotLocal = pointSpace === "world" ? worldToRobotLocal(pivotConfig) : pivotConfig;
-      state.pivotSpace = "local";
-      applyJointPivot(state, [pivotLocal.x, pivotLocal.y, pivotLocal.z]);
-      applyJointVisual(state, state.currentPos, { lockClosureForSelf: true });
-    });
-
-    initAutomaticPinConstraint();
-    if (autoPinConstraintReady && automaticPinConstraint?.mode === "physical_four_bar") {
-      const driver = findJointStateByTarget(automaticPinConstraint.driverTarget) || findJointStateByTarget("j2");
-      applyAutomaticPinConstraint({ sourceState: driver });
-    }
-    updateAxisHelperFromSelectedJoint();
-    syncPhysicalInputsFromDraft();
-
-    log("Physical calibration applied", {
-      enabled: physical.enabled,
-      space: physical.space,
-      j2LinkMm: Number(physical.joints?.j2?.activeLinkLength || 0).toFixed(3),
-      j3LinkMm: Number(physical.joints?.j3?.activeLinkLength || 0).toFixed(3)
-    });
-  };
-
-  physicalTools.append(
-    createControlField("Enable Physical", physicalEnabledInput),
-    createControlField("Physical Space", physicalSpaceSelect),
-    createControlField("Driver Target", physicalTargetSelect),
-    createControlField("Pivot X", physicalPivotXInput),
-    createControlField("Pivot Y", physicalPivotYInput),
-    createControlField("Pivot Z", physicalPivotZInput),
-    createControlField("J2 Link (mm)", physicalJ2LengthInput),
-    createControlField("J3 Link (mm)", physicalJ3LengthInput),
-    createControlField("Axis Target", axisTargetSelect),
-    createControlField("Axis Dir X", axisDirXInput),
-    createControlField("Axis Dir Y", axisDirYInput),
-    createControlField("Axis Dir Z", axisDirZInput),
-    physicalReloadBtn,
-    physicalUseSelectedPivotBtn,
-    physicalApplyBtn,
-    axisReloadBtn,
-    axisApplyBtn,
-    axisShowBtn,
-    axisDragBtn,
-    axisPickBtn,
-    axisPinBtn,
-    axisSlideBtn
-  );
-  setControlFieldLabels(physicalTools, ["Enable Closed-Chain", "Physical Space", "Driver Target", "Pivot X", "Pivot Y", "Pivot Z", "J2 Link Length (mm)", "J3 Link Length (mm)", "Axis Target", "Axis Dir X (parent)", "Axis Dir Y (parent)", "Axis Dir Z (parent)"]);
-
-  const demoTools = document.createElement("div");
-  demoTools.className = "demo-tools";
-
-  const demoEnabledInput = document.createElement("input");
-  demoEnabledInput.type = "checkbox";
-  demoEnabledInput.checked = demoRuntime.enabled === true;
-
-  const demoAutoFeaInput = document.createElement("input");
-  demoAutoFeaInput.type = "checkbox";
-  demoAutoFeaInput.checked = demoRuntime.autoFea !== false;
-
-  const demoElbowSelect = createSelectInput(
-    [
-      { value: "down", label: "down" },
-      { value: "up", label: "up" }
-    ],
-    demoRuntime.elbow
-  );
-
-  const demoWristPitchInput = createNumberInput(demoRuntime.wristPitchDeg, -180, 180, 0.1);
-  const demoPayloadInput = createNumberInput(demoRuntime.payloadNewton, 0, 1000, 0.1);
-  const demoTargetXInput = createNumberInput(demoRuntime.target.x, -2000, 2000, 0.1);
-  const demoTargetYInput = createNumberInput(demoRuntime.target.y, -2000, 2000, 0.1);
-  const demoTargetZInput = createNumberInput(demoRuntime.target.z, -2000, 2000, 0.1);
-
-  const demoFromFkBtn = document.createElement("button");
-  demoFromFkBtn.className = "ghost-btn";
-  demoFromFkBtn.textContent = "Target <- FK";
-  demoFromFkBtn.title = "Use current FK TCP as target.";
-  const demoSolveIkBtn = document.createElement("button");
-  demoSolveIkBtn.textContent = "Solve IK + Apply";
-  demoSolveIkBtn.title = "Solve IK from target and drive J1~J4 (demo mode).";
-  const demoRunFeaBtn = document.createElement("button");
-  demoRunFeaBtn.className = "ghost-btn";
-  demoRunFeaBtn.textContent = "Refresh Pseudo-FEA";
-  demoRunFeaBtn.title = "Recompute pseudo stress/deformation from current pose.";
-  const demoClearFeaBtn = document.createElement("button");
-  demoClearFeaBtn.className = "ghost-btn";
-  demoClearFeaBtn.textContent = "Clear Pseudo-FEA";
-  demoClearFeaBtn.title = "Clear stress color/deformation overlay.";
-  demoTools.append(
-    createControlField("Enable Demo IK/FEA", demoEnabledInput),
-    createControlField("Auto FEA", demoAutoFeaInput),
-    createControlField("Elbow Branch", demoElbowSelect),
-    createControlField("Wrist Pitch (deg)", demoWristPitchInput),
-    createControlField("Payload (N)", demoPayloadInput),
-    createControlField("Target X (robot_local)", demoTargetXInput),
-    createControlField("Target Y (robot_local)", demoTargetYInput),
-    createControlField("Target Z (robot_local)", demoTargetZInput),
+  const demoBuilt = buildDemoPanelBlock({
+    demoRuntime,
+    demoTrendWindowMs,
+    demoTrendWindowOptions: DEMO_TREND_WINDOW_OPTIONS
+  });
+  const demoTools = demoBuilt.demoTools;
+  const demoLegend = demoBuilt.demoLegend;
+  const demoVisualGrid = demoBuilt.demoVisualGrid;
+  const demoReadout = demoBuilt.demoReadout;
+  const {
+    demoEnabledInput,
+    demoAutoFeaInput,
+    demoElbowSelect,
+    demoWristPitchInput,
+    demoPayloadInput,
+    demoTargetXInput,
+    demoTargetYInput,
+    demoTargetZInput,
     demoFromFkBtn,
     demoSolveIkBtn,
     demoRunFeaBtn,
-    demoClearFeaBtn
-  );
-  setControlFieldLabels(demoTools, ["Enable Demo IK+PseudoFEA", "Auto Refresh PseudoFEA", "Elbow Branch", "Wrist Pitch (deg)", "Payload (N)", "Target X (robot_local)", "Target Y (robot_local)", "Target Z (robot_local)"]);
+    demoClearFeaBtn,
+    demoReachBadge,
+    demoFeaBadge,
+    ikErrorMetric,
+    stressJ2Metric,
+    stressJ3Metric,
+    stressJ4Metric,
+    deformMetric,
+    demoTrendTitle,
+    demoTrendWindowSelect,
+    demoTrendClearBtn,
+    demoTrendCanvas
+  } = demoBuilt.refs;
 
-  const demoLegend = document.createElement("p");
-  demoLegend.className = "demo-legend";
-  demoLegend.textContent = "Legend: Purple=IK target, Blue=current FK, line color=error level.";
-  const demoVisualGrid = document.createElement("div");
-  demoVisualGrid.className = "demo-visual-grid";
-
-  const demoStatusRow = document.createElement("div");
-  demoStatusRow.className = "demo-status-row";
-  const demoReachBadge = document.createElement("span");
-  demoReachBadge.className = "demo-badge";
-  const demoFeaBadge = document.createElement("span");
-  demoFeaBadge.className = "demo-badge";
-  demoStatusRow.append(demoReachBadge, demoFeaBadge);
-
-  const createDemoMetric = (labelText) => {
-    const row = document.createElement("div");
-    row.className = "demo-metric-row";
-
-    const label = document.createElement("span");
-    label.className = "demo-metric-label";
-    label.textContent = labelText;
-
-    const value = document.createElement("span");
-    value.className = "demo-metric-value";
-    value.textContent = "--";
-
-    const track = document.createElement("div");
-    track.className = "demo-metric-track";
-    const fill = document.createElement("div");
-    fill.className = "demo-metric-fill";
-    track.appendChild(fill);
-
-    row.append(label, value, track);
-    return { row, value, fill };
-  };
-  const ikErrorMetric = createDemoMetric("IK Position Error");
-  const stressJ2Metric = createDemoMetric("J2 Stress Ratio");
-  const stressJ3Metric = createDemoMetric("J3 Stress Ratio");
-  const stressJ4Metric = createDemoMetric("J4 Stress Ratio");
-  const deformMetric = createDemoMetric("Total Deformation");
-  const demoTrendWrap = document.createElement("div");
-  demoTrendWrap.className = "demo-trend";
-  const demoTrendTitle = document.createElement("div");
-  demoTrendTitle.className = "demo-trend-title";
-  const demoTrendWindowSelect = createSelectInput(
-    DEMO_TREND_WINDOW_OPTIONS.map((ms) => ({
-      value: String(ms),
-      label: `${Math.round(ms / 1000)}s`
-    })),
-    String(demoTrendWindowMs)
-  );
-  demoTrendWindowSelect.className = "demo-trend-window-select";
-  const demoTrendWindowField = createControlField("Trend Window", demoTrendWindowSelect);
-  demoTrendWindowField.classList.add("demo-trend-window-field");
-  const demoTrendClearBtn = document.createElement("button");
-  demoTrendClearBtn.type = "button";
-  demoTrendClearBtn.className = "ghost-btn demo-trend-clear-btn";
-  demoTrendClearBtn.textContent = "Clear Trend";
-  demoTrendClearBtn.title = "Clear trend chart history.";
-  const demoTrendToolbar = document.createElement("div");
-  demoTrendToolbar.className = "demo-trend-toolbar";
-  demoTrendToolbar.append(demoTrendWindowField, demoTrendClearBtn);
-  const updateDemoTrendTitle = () => {
-    const sec = Math.round(normalizeDemoTrendWindowMs(demoTrendWindowMs) / 1000);
-    demoTrendTitle.textContent = `Trend (${sec}s): error / stress / deformation`;
-  };
-  updateDemoTrendTitle();
-  const demoTrendCanvas = document.createElement("canvas");
-  demoTrendCanvas.className = "demo-trend-canvas";
-  demoTrendWrap.append(demoTrendTitle, demoTrendToolbar, demoTrendCanvas);
-
-  demoVisualGrid.append(
-    demoStatusRow,
-    demoTrendWrap,
-    ikErrorMetric.row,
-    stressJ2Metric.row,
-    stressJ3Metric.row,
-    stressJ4Metric.row,
-    deformMetric.row
-  );
-
-  const demoReadout = document.createElement("pre");
-  demoReadout.className = "demo-readout";
-
-  const getDemoTargetInput = () => ({
-    x: clampNumber(demoTargetXInput.value, -2000, 2000, demoRuntime.target.x),
-    y: clampNumber(demoTargetYInput.value, -2000, 2000, demoRuntime.target.y),
-    z: clampNumber(demoTargetZInput.value, -2000, 2000, demoRuntime.target.z)
+  const demoReadoutController = createDemoReadoutController({
+    demoTrendTitle,
+    demoTrendCanvas,
+    demoReadout,
+    demoReachBadge,
+    demoFeaBadge,
+    ikErrorMetric,
+    stressJ2Metric,
+    stressJ3Metric,
+    stressJ4Metric,
+    deformMetric,
+    demoTargetXInput,
+    demoTargetYInput,
+    demoTargetZInput,
+    demoWristPitchInput,
+    demoPayloadInput,
+    demoEnabledInput,
+    demoAutoFeaInput,
+    demoElbowSelect,
+    demoRuntime,
+    demoArmModel,
+    assemblyLockRuntime,
+    runDemoForwardFromCurrentPose,
+    runDemoInverseKinematics,
+    pushDemoTrendSample,
+    drawDemoTrendChart,
+    normalizeDemoTrendWindowMs,
+    getTrendWindowMs: () => demoTrendWindowMs,
+    clampNumber,
+    toFiniteNumber,
+    syncDemoRuntimeIntoLoadedConfig,
+    updateDemoOverlay
   });
-
-  const setDemoTargetInput = (target) => {
-    if (!target) return;
-    demoTargetXInput.value = String(Number(target.x || 0));
-    demoTargetYInput.value = String(Number(target.y || 0));
-    demoTargetZInput.value = String(Number(target.z || 0));
-  };
-
-  const formatTriplet = (obj) => {
-    if (!obj) return "(n/a)";
-    const x = Number(obj.x || 0).toFixed(2);
-    const y = Number(obj.y || 0).toFixed(2);
-    const z = Number(obj.z || 0).toFixed(2);
-    return `(${x}, ${y}, ${z})`;
-  };
-
-  const metricToneColor = (ratio) => {
-    const r = clampNumber(ratio, 0, 1, 0);
-    if (r < 0.42) return "#35c679";
-    if (r < 0.75) return "#f8a61f";
-    return "#ff4a45";
-  };
-
-  const setMetricValue = (metric, ratio, valueText) => {
-    if (!metric) return;
-    const safeRatio = clampNumber(ratio, 0, 1, 0);
-    metric.value.textContent = valueText;
-    metric.fill.style.width = `${(safeRatio * 100).toFixed(1)}%`;
-    metric.fill.style.background = metricToneColor(safeRatio);
-  };
-
-  const setBadgeState = (badge, text, tone = "neutral") => {
-    if (!badge) return;
-    badge.textContent = text;
-    badge.className = `demo-badge tone-${tone}`;
-  };
-
-  const updateDemoReadout = () => {
-    const fk = runDemoForwardFromCurrentPose();
-    const ikPreview = runDemoInverseKinematics(demoArmModel, demoRuntime.target, {
-      elbow: demoRuntime.elbow,
-      wristPitchDeg: demoRuntime.wristPitchDeg
-    });
-    const ik = demoRuntime.lastIk;
-    const fea = demoRuntime.lastFea;
-
-    const target = {
-      x: toFiniteNumber(demoRuntime.target?.x, 0),
-      y: toFiniteNumber(demoRuntime.target?.y, 0),
-      z: toFiniteNumber(demoRuntime.target?.z, 0)
-    };
-    const liveError = {
-      x: target.x - toFiniteNumber(fk?.tcp?.x, 0),
-      y: target.y - toFiniteNumber(fk?.tcp?.y, 0),
-      z: target.z - toFiniteNumber(fk?.tcp?.z, 0)
-    };
-    const liveErrorNorm = Math.hypot(liveError.x, liveError.y, liveError.z);
-    const feaMaxRatio = Number.isFinite(Number(fea?.summary?.maxRatio))
-      ? Number(fea.summary.maxRatio)
-      : NaN;
-    const feaDeformationMm = Number.isFinite(Number(fea?.summary?.totalDeformationMm))
-      ? Number(fea.summary.totalDeformationMm)
-      : NaN;
-
-    updateDemoOverlay({
-      forceVisible: demoRuntime.enabled,
-      fk,
-      ikPreview
-    });
-
-    const ikErrorRatio = clampNumber(liveErrorNorm / 40, 0, 1, 0);
-    setMetricValue(ikErrorMetric, ikErrorRatio, `${liveErrorNorm.toFixed(2)} mm`);
-
-    if (ikPreview) {
-      setBadgeState(
-        demoReachBadge,
-        ikPreview.reachable ? "IK reachable" : "IK unreachable (outside workspace)",
-        ikPreview.reachable ? "ok" : "bad"
-      );
-    } else {
-      setBadgeState(demoReachBadge, "IK not solved", "neutral");
-    }
-
-    if (fea?.summary) {
-      const r2 = clampNumber(Number(fea.byTarget?.j2?.stressRatio ?? 0), 0, 1.2, 0);
-      const r3 = clampNumber(Number(fea.byTarget?.j3?.stressRatio ?? 0), 0, 1.2, 0);
-      const r4 = clampNumber(Number(fea.byTarget?.j4?.stressRatio ?? 0), 0, 1.2, 0);
-      setMetricValue(stressJ2Metric, r2 / 1.2, `${r2.toFixed(2)} ratio`);
-      setMetricValue(stressJ3Metric, r3 / 1.2, `${r3.toFixed(2)} ratio`);
-      setMetricValue(stressJ4Metric, r4 / 1.2, `${r4.toFixed(2)} ratio`);
-
-      const deformMm = Number(fea.summary.totalDeformationMm || 0);
-      setMetricValue(deformMetric, clampNumber(deformMm / 18, 0, 1, 0), `${deformMm.toFixed(2)} mm`);
-
-      const maxRatio = Number(fea.summary.maxRatio || 0);
-      setBadgeState(
-        demoFeaBadge,
-        `Pseudo-FEA max ratio ${maxRatio.toFixed(2)}`,
-        maxRatio < 0.45 ? "ok" : (maxRatio < 0.8 ? "warn" : "bad")
-      );
-    } else {
-      setMetricValue(stressJ2Metric, 0, "--");
-      setMetricValue(stressJ3Metric, 0, "--");
-      setMetricValue(stressJ4Metric, 0, "--");
-      setMetricValue(deformMetric, 0, "--");
-      setBadgeState(demoFeaBadge, "Pseudo-FEA not run", "neutral");
-    }
-
-    pushDemoTrendSample({
-      errorMm: liveErrorNorm,
-      maxRatio: feaMaxRatio,
-      deformationMm: feaDeformationMm
-    });
-    drawDemoTrendChart(demoTrendCanvas);
-
-    const lines = [];
-    lines.push(`Mode: ${demoRuntime.enabled ? "Demo ON" : "Demo OFF"} (for fast visualization, not physical truth)`);
-    lines.push(
-      `Assembly Lock: ${assemblyLockRuntime.enabled ? "ON" : "OFF"}, ` +
-      `coupling=${assemblyLockRuntime.disableCouplings ? "disabled" : "enabled"}, ` +
-      `autoPivot=${assemblyLockRuntime.autoInferPivots ? "on" : "off"}`
-    );
-    lines.push(`Trend Window: ${Math.round(normalizeDemoTrendWindowMs(demoTrendWindowMs) / 1000)}s`);
-    lines.push(
-      `Geometry (mm): H=${demoArmModel.baseHeight.toFixed(2)} ` +
-      `L2=${demoArmModel.link2.toFixed(3)} L3=${demoArmModel.link3.toFixed(3)} Tool=${demoArmModel.tool.toFixed(2)}`
-    );
-    lines.push(`FK (robot_local): ${formatTriplet(fk?.tcp)}`);
-    lines.push(`Target (robot_local): ${formatTriplet(target)}`);
-    lines.push(
-      `Error: dx=${liveError.x.toFixed(3)} dy=${liveError.y.toFixed(3)} dz=${liveError.z.toFixed(3)} ` +
-      `|d|=${liveErrorNorm.toFixed(3)} mm`
-    );
-
-    if (ikPreview) {
-      lines.push(
-        `IK Preview: elbow=${ikPreview.elbow}, reachable=${ikPreview.reachable ? "yes" : "no"}, ` +
-        `residual=${Number(ikPreview.errorNorm || 0).toFixed(3)} mm`
-      );
-    }
-
-    if (ik?.jointDeg) {
-      lines.push(
-        `Solve IK: J1=${ik.jointDeg.j1.toFixed(2)} J2=${ik.jointDeg.j2.toFixed(2)} ` +
-        `J3=${ik.jointDeg.j3.toFixed(2)} J4=${ik.jointDeg.j4.toFixed(2)}`
-      );
-    } else {
-      lines.push("Solve IK: not executed");
-    }
-
-    if (fea?.summary) {
-      lines.push(
-        `Pseudo-FEA: payload=${Number(fea.payloadNewton || 0).toFixed(2)}N, ` +
-        `maxRatio=${Number(fea.summary.maxRatio || 0).toFixed(3)}, ` +
-        `maxStress=${Number(fea.summary.maxStressMpa || 0).toFixed(3)}MPa, ` +
-        `deformation=${Number(fea.summary.totalDeformationMm || 0).toFixed(3)}mm`
-      );
-    } else {
-      lines.push("Pseudo-FEA: not executed");
-    }
-    demoReadout.textContent = lines.join("\n");
-  
-  };
-
-  const commitDemoRuntimeFromInputs = ({ syncTarget = true } = {}) => {
-    demoRuntime.enabled = !!demoEnabledInput.checked;
-    demoRuntime.autoFea = !!demoAutoFeaInput.checked;
-    demoRuntime.elbow = String(demoElbowSelect.value || "down").trim().toLowerCase() === "up" ? "up" : "down";
-    demoRuntime.wristPitchDeg = clampNumber(demoWristPitchInput.value, -180, 180, demoRuntime.wristPitchDeg);
-    demoRuntime.payloadNewton = clampNumber(demoPayloadInput.value, 0, 1000, demoRuntime.payloadNewton);
-    if (syncTarget) {
-      demoRuntime.target = getDemoTargetInput();
-      setDemoTargetInput(demoRuntime.target);
-    }
-    demoWristPitchInput.value = String(demoRuntime.wristPitchDeg);
-    demoPayloadInput.value = String(demoRuntime.payloadNewton);
-    syncDemoRuntimeIntoLoadedConfig();
-    updateDemoReadout();
-  };
+  const updateDemoTrendTitle = demoReadoutController.updateDemoTrendTitle;
+  const setDemoTargetInput = demoReadoutController.setDemoTargetInput;
+  const updateDemoReadout = demoReadoutController.updateDemoReadout;
+  const commitDemoRuntimeFromInputs = demoReadoutController.commitDemoRuntimeFromInputs;
+  updateDemoTrendTitle();
 
   demoReadoutUpdater = updateDemoReadout;
   drawDemoTrendChart(demoTrendCanvas);
@@ -4619,38 +3629,6 @@ function initServoPanel(states) {
 
   const coordReadout = document.createElement("pre");
   coordReadout.className = "coord-readout";
-
-  const getProbeInputPoint = () => new THREE.Vector3(
-    clampNumber(coordXInput.value, -99999, 99999, 0),
-    clampNumber(coordYInput.value, -99999, 99999, 0),
-    clampNumber(coordZInput.value, -99999, 99999, 0)
-  );
-
-  const setProbeInputPoint = (vec) => {
-    if (!vec) return;
-    coordXInput.value = String(Number(vec.x || 0));
-    coordYInput.value = String(Number(vec.y || 0));
-    coordZInput.value = String(Number(vec.z || 0));
-  };
-
-  const updateCoordReadout = (worldPoint = coordProbeLastWorldPoint, sourceSpace = coordSpaceSelect.value) => {
-    if (!worldPoint) {
-      coordReadout.textContent = buildCoordinateSpaceGuideText();
-      return;
-    }
-    coordReadout.textContent = `${buildCoordinateProbeReport(worldPoint, sourceSpace)}\n\n${buildCoordinateSpaceGuideText()}`;
-  };
-
-  coordProbeReadoutUpdater = () => {
-    if (coordProbeLastWorldPoint && coordSpaceSelect.value === "selected_parent_local") {
-      const converted = convertPointFromWorldToSpace(coordProbeLastWorldPoint, "selected_parent_local");
-      if (converted.point) {
-        setProbeInputPoint(converted.point);
-      }
-    }
-    updateCoordReadout(coordProbeLastWorldPoint, coordSpaceSelect.value);
-  };
-  coordProbeReadoutUpdater();
 
   if (!supportsFileSystemAccess()) {
     bindJointConfigBtn.disabled = true;
@@ -4672,669 +3650,252 @@ function initServoPanel(states) {
   refreshJointSelectionUI();
   updateAxisHelperFromSelectedJoint();
 
-  let presetList = readPresetList();
-  const sortPresetList = () => {
-    presetList.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
-  };
-
-  const refreshPresetOptions = (selectedName = "") => {
-    sortPresetList();
-    presetSelect.innerHTML = "";
-
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = presetList.length > 0 ? "Select a preset..." : "No presets";
-    presetSelect.appendChild(placeholder);
-
-    presetList.forEach((preset) => {
-      const option = document.createElement("option");
-      option.value = preset.name;
-      option.textContent = preset.name;
-      presetSelect.appendChild(option);
-    });
-
-    const targetSelect = selectedName || presetSelect.value;
-    if (targetSelect && presetList.some((preset) => preset.name === targetSelect)) {
-      presetSelect.value = targetSelect;
-    } else {
-      presetSelect.value = "";
-    }
-
-    const hasSelection = Boolean(presetSelect.value);
-    loadPresetBtn.disabled = !hasSelection;
-    loadSendPresetBtn.disabled = !hasSelection;
-    deletePresetBtn.disabled = !hasSelection;
-  };
-
-  const saveCurrentPreset = () => {
-    let name = normalizePresetName(presetNameInput.value);
-    if (!name) {
-      name = buildAutoPresetName();
-      presetNameInput.value = name;
-    }
-
-    const record = buildPresetRecord(name);
-    const idx = presetList.findIndex((item) => item.name === name);
-    if (idx >= 0) {
-      presetList[idx] = record;
-    } else {
-      presetList.push(record);
-    }
-
-    sortPresetList();
-    if (presetList.length > PRESET_MAX_COUNT) {
-      presetList = presetList.slice(0, PRESET_MAX_COUNT);
-    }
-
-    if (!writePresetList(presetList)) {
-      return;
-    }
-
-    refreshPresetOptions(name);
-    log("Preset saved", { name });
-  };
-
-  const applyPresetByName = (name, sendMoves = false) => {
-    const preset = presetList.find((item) => item.name === name);
-    if (!preset) {
-      log("Preset not found", { name });
-      return;
-    }
-
-    applyPresetGlobalSettings(preset, { pollInput, delayInput, globalRealtimeInput });
-
-    const byTarget = new Map();
-    const byName = new Map();
-    const joints = Array.isArray(preset.joints) ? preset.joints : [];
-    joints.forEach((joint) => {
-      if (!joint || typeof joint !== "object") return;
-      if (joint.target) byTarget.set(String(joint.target), joint);
-      if (joint.name) byName.set(String(joint.name), joint);
-    });
-
-    states.forEach((state, idx) => {
-      const presetJoint = byTarget.get(state.target) || byName.get(state.name) || joints[idx] || null;
-      if (presetJoint) {
-        applyPresetJointToState(state, presetJoint);
-      }
-
-      if (sendMoves) {
-        setTimeout(() => {
-          sendMoveCommand(state, { silentWhenClosed: true });
-        }, idx * 90);
-      }
-    });
-
-    log(sendMoves ? "Preset loaded and sent" : "Preset loaded", { name });
-  };
-
-  const deletePresetByName = (name) => {
-    const oldLen = presetList.length;
-    presetList = presetList.filter((item) => item.name !== name);
-    if (presetList.length === oldLen) return;
-
-    if (!writePresetList(presetList)) {
-      return;
-    }
-
-    refreshPresetOptions("");
-    log("Preset deleted", { name });
-  };
+  const presetController = createPresetController({
+    initialPresetList: readPresetList(),
+    presetSelect,
+    presetNameInput,
+    loadPresetBtn,
+    loadSendPresetBtn,
+    deletePresetBtn,
+    readPresetList,
+    writePresetList,
+    normalizePresetName,
+    buildAutoPresetName,
+    buildPresetRecord,
+    applyPresetGlobalSettings,
+    applyPresetJointToState,
+    states,
+    pollInput,
+    delayInput,
+    globalRealtimeInput,
+    sendMoveCommand,
+    maxCount: PRESET_MAX_COUNT,
+    log
+  });
+  const refreshPresetOptions = presetController.refreshPresetOptions;
+  const saveCurrentPreset = presetController.saveCurrentPreset;
+  const applyPresetByName = presetController.applyPresetByName;
+  const deletePresetByName = presetController.deletePresetByName;
 
   const writeJointConfig = async ({ selectedOnly = false } = {}) => {
-    if (selectedOnly && !selectedJointState) {
-      log("No selected joint for write operation.");
-      return;
-    }
-
-    try {
-      const targetStates = collectWriteTargetStates({ selectedOnly });
-
-      if (isWsOpen()) {
-        try {
-          const gatewayConfig = await readJointConfigViaGateway();
-          const config = buildRuntimeJointConfig({
-            selectedOnly,
-            baseConfig: gatewayConfig,
-            targetStates
-          });
-          await writeJointConfigViaGateway(config);
-          loadedJointConfig = cloneConfig(config);
-          applyMotionLocksFromConfig(loadedJointConfig);
-          log(selectedOnly
-            ? "Selected joint written to joints.json (gateway direct write)."
-            : "All joints written to joints.json (gateway direct write).");
-          return;
-        } catch (gatewayError) {
-          log("Gateway direct write failed, fallback to browser file write.", { error: String(gatewayError) });
-        }
-      }
-
-      const handle = supportsFileSystemAccess()
-        ? await ensureJointConfigFileHandle({ promptIfMissing: true })
-        : null;
-      const fileConfig = await readJointConfigFromFileHandle(handle || jointConfigFileHandle);
-      const config = buildRuntimeJointConfig({
-        selectedOnly,
-        baseConfig: fileConfig || loadedJointConfig || FALLBACK_CONFIG,
-        targetStates
-      });
-      const result = await writeConfigToFileOrDownload(config, {
-        preferFileName: "joints.json",
-        fileHandle: handle || jointConfigFileHandle,
-        promptForFileHandle: false
-      });
-      loadedJointConfig = cloneConfig(config);
-      applyMotionLocksFromConfig(loadedJointConfig);
-
-      if (result.method === "file") {
-        log(selectedOnly ? "Selected joint written to joints.json" : "All joints written to joints.json");
-      } else {
-        log("Direct file write unavailable, exported as joints.json download.");
-      }
-    } catch (error) {
-      log("Write joints.json failed", { error: String(error) });
-    }
-  };
-
-  const locateCoordinateProbeFromInputs = () => {
-    const inputPoint = getProbeInputPoint();
-    const fromSpace = coordSpaceSelect.value;
-    const converted = convertPointFromSpaceToWorld(inputPoint, fromSpace);
-    if (!converted.point) {
-      log("Coordinate locate failed", { space: fromSpace, error: converted.error });
-      coordReadout.textContent = `${buildCoordinateSpaceGuideText()}
-
-Error: ${String(converted.error || "unknown error")}`;
-      return;
-    }
-
-    setProbeInputPoint(inputPoint);
-    showCoordinateProbe(converted.point);
-    updateCoordReadout(converted.point, fromSpace);
-    log("Coordinate located", { space: fromSpace, point: [inputPoint.x, inputPoint.y, inputPoint.z] });
-  };
-
-  const useSelectedPivotAsProbePoint = () => {
-    if (!selectedJointState) {
-      const msg = "No selected joint parent object";
-      log(msg);
-      coordReadout.textContent = `${buildCoordinateSpaceGuideText()}
-
-Error: ${String(converted.error || "unknown error")}`;
-      return;
-    }
-
-    const pivotSpace = normalizePivotSpace(selectedJointState.pivotSpace, "world");
-    const pivotValue = toVec3(selectedJointState.pivot);
-    const worldPoint = pivotSpace === "local" ? robotLocalToWorld(pivotValue) : pivotValue;
-    const toSpace = coordSpaceSelect.value;
-    const converted = convertPointFromWorldToSpace(worldPoint, toSpace);
-    if (!converted.point) {
-      log("Pivot coordinate convert failed", { space: toSpace, error: converted.error });
-      coordReadout.textContent = `${buildCoordinateSpaceGuideText()}
-
-Error: ${String(converted.error || "unknown error")}`;
-      return;
-    }
-
-    setProbeInputPoint(converted.point);
-    showCoordinateProbe(worldPoint);
-    updateCoordReadout(worldPoint, toSpace);
-    log("Pivot coordinate converted", {
-      joint: selectedJointState.name,
-      pivotSpace,
-      toSpace
+    await writeJointConfigAction({
+      selectedOnly,
+      hasSelectedJoint: !!selectedJointState,
+      collectWriteTargetStates,
+      isWsOpen,
+      readJointConfigViaGateway,
+      writeJointConfigViaGateway,
+      buildRuntimeJointConfig,
+      cloneConfig,
+      applyMotionLocksFromConfig,
+      supportsFileSystemAccess,
+      ensureJointConfigFileHandle,
+      readJointConfigFromFileHandle,
+      writeConfigToFileOrDownload,
+      getJointConfigFileHandle: () => jointConfigFileHandle,
+      setJointConfigFileHandle: (h) => { jointConfigFileHandle = h || jointConfigFileHandle; },
+      loadedJointConfig,
+      fallbackConfig: FALLBACK_CONFIG,
+      setLoadedJointConfig: (cfg) => { loadedJointConfig = cfg; },
+      log
     });
   };
-
-  pollInput.addEventListener("change", () => {
-    positionPollIntervalMs = clampInt(pollInput.value, 100, 3000);
-    pollInput.value = String(positionPollIntervalMs);
-    restartPositionPolling();
+  const coordProbeController = createCoordProbeController({
+    coordReadout,
+    coordSpaceSelect,
+    coordXInput,
+    coordYInput,
+    coordZInput,
+    locateCoordBtn,
+    usePivotBtn,
+    hideCoordBtn,
+    alignFrameBtn,
+    getCoordProbeLastWorldPoint: () => coordProbeLastWorldPoint,
+    setCoordProbeReadoutUpdater: (fn) => {
+      coordProbeReadoutUpdater = fn;
+    },
+    buildCoordinateSpaceGuideText,
+    buildCoordinateProbeReport,
+    convertPointFromSpaceToWorld,
+    convertPointFromWorldToSpace,
+    showCoordinateProbe,
+    hideCoordinateProbe,
+    normalizePivotSpace,
+    toVec3,
+    robotLocalToWorld,
+    getSelectedJointState: () => selectedJointState,
+    alignRobotFrameByJ1AndFront,
+    clampNumber,
+    log
   });
-
-  delayInput.addEventListener("change", () => {
-    sliderAutoSendDelayMs = clampInt(delayInput.value, 20, 1200);
-    delayInput.value = String(sliderAutoSendDelayMs);
+  const updateCoordReadout = coordProbeController.updateCoordReadout;
+  const setProbeInputPoint = coordProbeController.setProbeInputPoint;
+  updateCoordReadoutRef = updateCoordReadout;
+  const physicalAxisController = createPhysicalAxisController({
+    physicalEnabledInput,
+    physicalSpaceSelect,
+    physicalTargetSelect,
+    physicalPivotXInput,
+    physicalPivotYInput,
+    physicalPivotZInput,
+    physicalJ2LengthInput,
+    physicalJ3LengthInput,
+    physicalReloadBtn,
+    physicalUseSelectedPivotBtn,
+    physicalApplyBtn,
+    axisTargetSelect,
+    axisDirXInput,
+    axisDirYInput,
+    axisDirZInput,
+    axisReloadBtn,
+    axisApplyBtn,
+    axisShowBtn,
+    axisDragBtn,
+    axisPickBtn,
+    axisPinBtn,
+    axisSlideBtn,
+    getLoadedJointConfig: () => loadedJointConfig,
+    setLoadedJointConfig: (cfg) => { loadedJointConfig = cfg; },
+    fallbackConfig: FALLBACK_CONFIG,
+    normalizePhysicalPointSpace,
+    normalizeAxisVectorArray,
+    safeAxis,
+    normalizePivotArray,
+    parseOptionalVec3,
+    toFiniteNumber,
+    clampNumber,
+    toVec3,
+    cloneConfig,
+    findJointStateByTarget,
+    getJointPivotWorldFromState,
+    convertWorldPointToPhysicalSpace,
+    robotLocalToWorld,
+    worldToRobotLocal,
+    getParentAxisVectorForTarget,
+    setParentAxisVectorForTarget,
+    ensurePhysicalKinematicsConfig,
+    ensurePhysicalJointConfigEntry,
+    applyMotionLocksFromConfig,
+    applyJointPivot,
+    applyJointVisual,
+    initAutomaticPinConstraint,
+    getAutoPinConstraintReady: () => autoPinConstraintReady,
+    getAutomaticPinConstraint: () => automaticPinConstraint,
+    applyAutomaticPinConstraint,
+    updateAxisHelperFromSelectedJoint,
+    getSelectedJointState: () => selectedJointState,
+    setSelectedJointState,
+    showCoordinateProbe,
+    updateCoordReadout,
+    getAxisLineEditorState,
+    startAxisLineEditor,
+    stopAxisLineEditor,
+    setAxisLineEditorMode,
+    setAxisLineEditorLinePinned,
+    setAxisLineEditorOnAxisUpdated,
+    setAxisLineEditorOnStateChanged,
+    log
   });
-
-  globalRealtimeInput.addEventListener("change", () => {
-    globalRealtimeSendEnabled = !!globalRealtimeInput.checked;
-    if (!globalRealtimeSendEnabled) {
+  const pullPhysicalDraftFromConfig = physicalAxisController.pullPhysicalDraftFromConfig;
+  const syncPhysicalInputsFromDraft = physicalAxisController.syncPhysicalInputsFromDraft;
+  const syncAxisInputsFromRuntime = physicalAxisController.syncAxisInputsFromRuntime;
+  const syncAxisEditorButtons = physicalAxisController.syncAxisEditorButtons;
+  createDemoController({
+    demoTrendWindowSelect,
+    demoTrendClearBtn,
+    demoEnabledInput,
+    demoAutoFeaInput,
+    demoElbowSelect,
+    demoWristPitchInput,
+    demoPayloadInput,
+    demoTargetXInput,
+    demoTargetYInput,
+    demoTargetZInput,
+    demoFromFkBtn,
+    demoSolveIkBtn,
+    demoRunFeaBtn,
+    demoClearFeaBtn,
+    getTrendWindowMs: () => demoTrendWindowMs,
+    setTrendWindowMs: (v) => { demoTrendWindowMs = v; },
+    normalizeDemoTrendWindowMs,
+    trimDemoTrendHistory,
+    updateDemoTrendTitle,
+    drawDemoTrendChart,
+    demoTrendCanvas,
+    commitDemoRuntimeFromInputs,
+    updateDemoReadout,
+    demoRuntime,
+    resetDemoTrendHistory,
+    clearDemoFeaVisualization,
+    runDemoFeaFromCurrentPose,
+    runDemoForwardFromCurrentPose,
+    runDemoInverseAndApply,
+    setDemoTargetInput,
+    toWorldPointFromRobotLocal: (point) => robotLocalToWorld(new THREE.Vector3(point.x, point.y, point.z)),
+    showCoordinateProbe,
+    updateCoordReadout,
+    syncDemoRuntimeIntoLoadedConfig,
+    log
+  });
+  bindServoPanelEvents({
+    pollInput,
+    delayInput,
+    globalRealtimeInput,
+    frontViewBtn,
+    sideViewBtn,
+    topViewBtn,
+    bindJointConfigBtn,
+    writeSelectedJointBtn,
+    writeAllJointsBtn,
+    downloadJointConfigBtn,
+    presetSelect,
+    presetNameInput,
+    savePresetBtn,
+    loadPresetBtn,
+    loadSendPresetBtn,
+    deletePresetBtn,
+    queryAllBtn,
+    defaultBtn,
+    hardResetBtn,
+    setPositionPollIntervalMs: (v) => { positionPollIntervalMs = v; },
+    getPositionPollIntervalMs: () => positionPollIntervalMs,
+    clampInt,
+    restartPositionPolling,
+    setSliderAutoSendDelayMs: (v) => { sliderAutoSendDelayMs = v; },
+    getSliderAutoSendDelayMs: () => sliderAutoSendDelayMs,
+    setGlobalRealtimeSendEnabled: (v) => { globalRealtimeSendEnabled = !!v; },
+    clearAutoSendTimers: () => {
       states.forEach((state) => {
         if (state.autoSendTimer) {
           clearTimeout(state.autoSendTimer);
           state.autoSendTimer = null;
         }
       });
-    }
-  });
-
-  frontViewBtn.addEventListener("click", () => {
-    setPlaneView("xy");
-  });
-
-  sideViewBtn.addEventListener("click", () => {
-    setPlaneView("yz");
-  });
-
-  topViewBtn.addEventListener("click", () => {
-    setPlaneView("xz");
-  });
-
-  bindJointConfigBtn.addEventListener("click", async () => {
-    try {
-      const handle = await bindJointConfigFileHandle();
-      if (handle) {
-        log("Bound joints.json file. You can now one-click write.");
-      } else {
-        log("Bind canceled.");
-      }
-    } catch (error) {
-      log("Bind joints.json failed", { error: String(error) });
-    }
-  });
-
-  writeSelectedJointBtn.addEventListener("click", async () => {
-    await writeJointConfig({ selectedOnly: true });
-  });
-
-  writeAllJointsBtn.addEventListener("click", async () => {
-    await writeJointConfig({ selectedOnly: false });
-  });
-
-  downloadJointConfigBtn.addEventListener("click", () => {
-    const targetStates = collectWriteTargetStates({ selectedOnly: false });
-    const config = buildRuntimeJointConfig({ selectedOnly: false, targetStates });
-    const text = serializeConfig(config);
-    downloadConfigFile(text, "joints.json");
-    loadedJointConfig = cloneConfig(config);
-    applyMotionLocksFromConfig(loadedJointConfig);
-    log("joints.json downloaded from current runtime parameters.");
-  });
-
-  locateCoordBtn.addEventListener("click", () => {
-    locateCoordinateProbeFromInputs();
-  });
-
-  usePivotBtn.addEventListener("click", () => {
-    useSelectedPivotAsProbePoint();
-  });
-
-  hideCoordBtn.addEventListener("click", () => {
-    hideCoordinateProbe();
-    updateCoordReadout(null, coordSpaceSelect.value);
-    log("Hide coordinate probe");
-  });
-
-  alignFrameBtn.addEventListener("click", () => {
-    const result = alignRobotFrameByJ1AndFront();
-    if (!result?.ok) {
-      log("Axis line edit apply failed", { error: String(result?.error || "unknown") });
-      return;
-    }
-    log("Axis line updated from pick", {
-      originWorld: result.originWorld,
-      j1AxisWorld: result.j1AxisWorld,
-      frameCalibration: result.frameCalibration,
-      frontTargetUsed: result.frontTargetUsed,
-      frontHorizontalLen: result.frontHorizontalLen,
-      yawMethod: result.yawMethod
-    });
-  });
-
-  coordSpaceSelect.addEventListener("change", () => {
-    if (coordProbeLastWorldPoint) {
-      const converted = convertPointFromWorldToSpace(coordProbeLastWorldPoint, coordSpaceSelect.value);
-      if (converted.point) {
-        setProbeInputPoint(converted.point);
-      }
-    }
-    updateCoordReadout(coordProbeLastWorldPoint, coordSpaceSelect.value);
-  });
-
-  [coordXInput, coordYInput, coordZInput].forEach((input) => {
-    input.addEventListener("keydown", (evt) => {
-      if (evt.key === "Enter") {
-        locateCoordinateProbeFromInputs();
-      }
-    });
-  });
-
-  [physicalPivotXInput, physicalPivotYInput, physicalPivotZInput].forEach((input) => {
-    input.addEventListener("change", () => {
-      captureActivePhysicalPivotInputs();
-      syncPhysicalInputsFromDraft();
-    });
-  });
-
-  physicalTargetSelect.addEventListener("change", () => {
-    captureActivePhysicalPivotInputs();
-    syncPhysicalInputsFromDraft();
-  });
-
-  physicalSpaceSelect.addEventListener("change", () => {
-    captureActivePhysicalPivotInputs();
-    convertPhysicalDraftSpace(physicalSpaceSelect.value);
-    syncPhysicalInputsFromDraft();
-  });
-
-  physicalReloadBtn.addEventListener("click", () => {
-    captureActivePhysicalPivotInputs();
-    pullPhysicalDraftFromConfig();
-    syncPhysicalInputsFromDraft();
-    log("Physical config reloaded from current joints.json state");
-  });
-
-  physicalUseSelectedPivotBtn.addEventListener("click", () => {
-    if (!selectedJointState) {
-      log("No selected joint for use-pivot operation.");
-      return;
-    }
-
-    captureActivePhysicalPivotInputs();
-    const key = String(physicalTargetSelect.value || "j2");
-    if (!physicalDraft.joints[key]) return;
-
-    const worldPoint = getJointPivotWorldFromState(selectedJointState);
-    const point = convertWorldPointToPhysicalSpace(worldPoint, physicalDraft.space);
-    physicalDraft.joints[key].pivot = [point.x, point.y, point.z];
-    syncPhysicalInputsFromDraft();
-    showCoordinateProbe(worldPoint);
-    updateCoordReadout(worldPoint, "world");
-    log("Loaded selected joint pivot to physical calibration", {
-      from: selectedJointState.name,
-      to: key,
-      space: physicalDraft.space
-    });
-  });
-
-  physicalApplyBtn.addEventListener("click", () => {
-    applyPhysicalDraftToRuntime();
-  });
-
-  axisTargetSelect.addEventListener("change", () => {
-    syncAxisInputsFromRuntime();
-    if (axisLineEditorActive) {
-      const target = String(axisTargetSelect.value || "j2");
-      startAxisLineEditor(target);
-      const state = findJointStateByTarget(target);
-      if (state) {
-        setSelectedJointState(state);
-      }
-    }
-    syncAxisEditorButtons();
-  });
-
-  axisReloadBtn.addEventListener("click", () => {
-    syncAxisInputsFromRuntime();
-  });
-
-  axisApplyBtn.addEventListener("click", () => {
-    applyAxisInputsToRuntime();
-  });
-
-  axisShowBtn.addEventListener("click", () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const state = findJointStateByTarget(target);
-    if (!state) {
-      log("Axis target joint not found", { target });
-      return;
-    }
-    setSelectedJointState(state);
-  });
-
-  axisDragBtn.addEventListener("click", () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const editingThis = axisLineEditorActive && axisLineEditorTarget === target;
-    if (editingThis && axisLineEditorMode === "direction") {
-      stopAxisLineEditor();
-      log("Axis drag editor stopped", { target });
-      return;
-    }
-    startAxisLineEditor(target);
-    setAxisLineEditorMode("direction");
-    const state = findJointStateByTarget(target);
-    if (state) {
-      setSelectedJointState(state);
-    }
-    syncAxisInputsFromRuntime();
-    syncAxisEditorButtons();
-    log("Axis direction drag mode enabled", { target });
-  });
-
-  axisPickBtn.addEventListener("click", () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const editingThis = axisLineEditorActive && axisLineEditorTarget === target;
-    if (editingThis && axisLineEditorMode === "pick") {
-      setAxisLineEditorMode("direction");
-      syncAxisEditorButtons();
-      log("Axis point-pick mode disabled", { target });
-      return;
-    }
-
-    startAxisLineEditor(target);
-    setAxisLineEditorMode("pick");
-    const state = findJointStateByTarget(target);
-    if (state) {
-      setSelectedJointState(state);
-    }
-    syncAxisInputsFromRuntime();
-    syncAxisEditorButtons();
-    log("Axis point-pick mode enabled (click mesh to create outside->inside axis)", { target });
-  });
-
-  axisPinBtn.addEventListener("click", () => {
-    const target = String(axisTargetSelect.value || "j2");
-    if (!axisLineEditorActive || axisLineEditorTarget !== target) {
-      startAxisLineEditor(target);
-      const state = findJointStateByTarget(target);
-      if (state) {
-        setSelectedJointState(state);
-      }
-    }
-
-    setAxisLineEditorLinePinned(!axisLineEditorLinePinned);
-    syncAxisEditorButtons();
-    log(axisLineEditorLinePinned ? "Axis line position pinned" : "Axis line position unpinned", { target });
-  });
-
-  axisSlideBtn.addEventListener("click", () => {
-    const target = String(axisTargetSelect.value || "j2");
-    const editingThis = axisLineEditorActive && axisLineEditorTarget === target;
-    if (editingThis && axisLineEditorMode === "pivot_slide") {
-      setAxisLineEditorMode("direction");
-      syncAxisEditorButtons();
-      log("Axis pivot-slide mode disabled", { target });
-      return;
-    }
-
-    startAxisLineEditor(target);
-    if (!axisLineEditorLinePinned) {
-      setAxisLineEditorLinePinned(true);
-    }
-    setAxisLineEditorMode("pivot_slide");
-    const state = findJointStateByTarget(target);
-    if (state) {
-      setSelectedJointState(state);
-    }
-    syncAxisInputsFromRuntime();
-    syncAxisEditorButtons();
-    log("Axis pivot-slide mode enabled (pivot constrained on axis)", {
-      target,
-      linePinned: axisLineEditorLinePinned
-    });
-  });
-
-  demoTrendWindowSelect.addEventListener("change", () => {
-    demoTrendWindowMs = normalizeDemoTrendWindowMs(demoTrendWindowSelect.value, demoTrendWindowMs);
-    demoTrendWindowSelect.value = String(demoTrendWindowMs);
-    trimDemoTrendHistory();
-    updateDemoTrendTitle();
-    drawDemoTrendChart(demoTrendCanvas);
-    updateDemoReadout();
-    log("Demo trend window changed", { windowSeconds: Math.round(demoTrendWindowMs / 1000) });
-  });
-
-  demoTrendClearBtn.addEventListener("click", () => {
-    resetDemoTrendHistory();
-    drawDemoTrendChart(demoTrendCanvas);
-    log("Demo trend history cleared");
-  });
-
-  demoEnabledInput.addEventListener("change", () => {
-    commitDemoRuntimeFromInputs({ syncTarget: true });
-    resetDemoTrendHistory();
-    updateDemoTrendTitle();
-    drawDemoTrendChart(demoTrendCanvas);
-    if (!demoRuntime.enabled) {
-      demoRuntime.lastFea = null;
-      clearDemoFeaVisualization();
-    } else if (demoRuntime.autoFea) {
-      runDemoFeaFromCurrentPose(demoRuntime.payloadNewton);
-    }
-    updateDemoReadout();
-    log("Demo IK/FEA mode changed", { enabled: demoRuntime.enabled, autoFea: demoRuntime.autoFea });
-  });
-
-  demoAutoFeaInput.addEventListener("change", () => {
-    commitDemoRuntimeFromInputs({ syncTarget: true });
-    if (demoRuntime.enabled && demoRuntime.autoFea) {
-      runDemoFeaFromCurrentPose(demoRuntime.payloadNewton);
-    }
-    updateDemoReadout();
-  });
-
-  [demoElbowSelect, demoWristPitchInput, demoPayloadInput].forEach((input) => {
-    input.addEventListener("change", () => {
-      commitDemoRuntimeFromInputs({ syncTarget: true });
-      if (demoRuntime.enabled && demoRuntime.autoFea) {
-        runDemoFeaFromCurrentPose(demoRuntime.payloadNewton);
-      }
-      updateDemoReadout();
-    });
-  });
-
-  [demoTargetXInput, demoTargetYInput, demoTargetZInput].forEach((input) => {
-    input.addEventListener("change", () => {
-      commitDemoRuntimeFromInputs({ syncTarget: true });
-    });
-    input.addEventListener("keydown", (evt) => {
-      if (evt.key === "Enter") {
-        commitDemoRuntimeFromInputs({ syncTarget: true });
-      }
-    });
-  });
-
-  demoFromFkBtn.addEventListener("click", () => {
-    const fk = runDemoForwardFromCurrentPose();
-    demoRuntime.lastFk = fk;
-    if (fk?.tcp) {
-      demoRuntime.target = { x: fk.tcp.x, y: fk.tcp.y, z: fk.tcp.z };
-      setDemoTargetInput(demoRuntime.target);
-      const worldPoint = robotLocalToWorld(new THREE.Vector3(fk.tcp.x, fk.tcp.y, fk.tcp.z));
-      showCoordinateProbe(worldPoint);
-      updateCoordReadout(worldPoint, "robot_local");
-    }
-    syncDemoRuntimeIntoLoadedConfig();
-    updateDemoReadout();
-    log("Demo target captured from FK", { target: demoRuntime.target });
-  });
-
-  demoSolveIkBtn.addEventListener("click", () => {
-    commitDemoRuntimeFromInputs({ syncTarget: true });
-    const ik = runDemoInverseAndApply(demoRuntime.target, {
-      elbow: demoRuntime.elbow,
-      wristPitchDeg: demoRuntime.wristPitchDeg
-    });
-    if (ik?.target) {
-      const worldPoint = robotLocalToWorld(new THREE.Vector3(ik.target.x, ik.target.y, ik.target.z));
-      showCoordinateProbe(worldPoint);
-      updateCoordReadout(worldPoint, "robot_local");
-    }
-    updateDemoReadout();
-    log("Demo IK solved", {
-      reachable: ik?.reachable === true,
-      errorMm: Number(ik?.errorNorm || 0).toFixed(3)
-    });
-  });
-
-  demoRunFeaBtn.addEventListener("click", () => {
-    commitDemoRuntimeFromInputs({ syncTarget: true });
-    const fea = runDemoFeaFromCurrentPose(demoRuntime.payloadNewton);
-    updateDemoReadout();
-    log("Pseudo FEA updated", {
-      payloadN: Number(fea?.payloadNewton || 0).toFixed(2),
-      maxRatio: Number(fea?.summary?.maxRatio || 0).toFixed(3)
-    });
-  });
-
-  demoClearFeaBtn.addEventListener("click", () => {
-    demoRuntime.lastFea = null;
-    clearDemoFeaVisualization();
-    updateDemoReadout();
-    log("Pseudo FEA visualization cleared");
-  });
-
-  presetSelect.addEventListener("change", () => {
-    const hasSelection = Boolean(presetSelect.value);
-    loadPresetBtn.disabled = !hasSelection;
-    loadSendPresetBtn.disabled = !hasSelection;
-    deletePresetBtn.disabled = !hasSelection;
-    if (hasSelection) {
-      presetNameInput.value = presetSelect.value;
-    }
-  });
-
-  presetNameInput.addEventListener("change", () => {
-    presetNameInput.value = normalizePresetName(presetNameInput.value);
-  });
-
-  savePresetBtn.addEventListener("click", () => {
-    saveCurrentPreset();
-  });
-
-  loadPresetBtn.addEventListener("click", () => {
-    const name = presetSelect.value;
-    if (!name) return;
-    applyPresetByName(name, false);
-  });
-
-  loadSendPresetBtn.addEventListener("click", () => {
-    const name = presetSelect.value;
-    if (!name) return;
-    applyPresetByName(name, true);
-  });
-
-  deletePresetBtn.addEventListener("click", () => {
-    const name = presetSelect.value;
-    if (!name) return;
-    deletePresetByName(name);
-  });
-
-  queryAllBtn.addEventListener("click", () => {
-    queryAllPositionsStaggered();
-    const ids = buildPollIdList();
-    ids.forEach((id, idx) => {
-      setTimeout(() => send({ type: "vin", id }, true), idx * 70);
-      setTimeout(() => send({ type: "temp", id }, true), idx * 70 + 30);
-      setTimeout(() => send({ type: "id_read", id }, true), idx * 70 + 45);
-    });
-  });
-
-  defaultBtn.addEventListener("click", () => {
-    states.forEach((state, idx) => {
-      applyJointVisual(state, state.defaultPos);
-      if (shouldRealtimeSend(state)) {
-        setTimeout(() => sendMoveCommand(state, { silentWhenClosed: true }), idx * 90);
-      }
-    });
-  });
-
-  hardResetBtn.addEventListener("click", () => {
-    resetArmToDefaults({ silentWhenClosed: false });
-    log("Hard reset triggered", { jointCount: jointStates.length });
+    },
+    setPlaneView,
+    bindJointConfigFileHandle,
+    writeJointConfig,
+    collectWriteTargetStates,
+    buildRuntimeJointConfig,
+    serializeConfig,
+    downloadConfigFile,
+    cloneConfig,
+    applyMotionLocksFromConfig,
+    setLoadedJointConfig: (cfg) => { loadedJointConfig = cfg; },
+    normalizePresetName,
+    saveCurrentPreset,
+    applyPresetByName,
+    deletePresetByName,
+    queryAllPositionsStaggered,
+    buildPollIdList,
+    send,
+    states,
+    applyJointVisual,
+    shouldRealtimeSend,
+    sendMoveCommand,
+    resetArmToDefaults,
+    getJointStatesLength: () => jointStates.length,
+    log
   });
 
   pullPhysicalDraftFromConfig();
@@ -5350,84 +3911,34 @@ Error: ${String(converted.error || "unknown error")}`;
   updateDemoReadout();
   refreshPresetOptions();
 
-  if (FRONT_MINIMAL_MODE) {
-    const commonSection = createPanelSection(
-      "Arm Controls",
-      "Essential runtime actions for real-arm commissioning.",
-      [panelTools],
-      { collapsible: false }
-    );
-    servoPanel.append(panelHeader, commonSection, grid);
-  } else {
-    const commonSection = createPanelSection(
-      "Global Controls",
-      "Polling, camera presets, and config write actions.",
-      [panelTools, viewTools, configTools],
-      { collapsible: false }
-    );
-    const presetSection = createPanelSection(
-      "Presets",
-      "Save/load parameter snapshots for quick demos.",
-      [presetTools],
-      { collapsible: true, open: false }
-    );
-    const coordSection = createPanelSection(
-      "Coordinate Probe",
-      "Locate points in 3D and compare coordinate spaces.",
-      [coordTools, coordReadout],
-      { collapsible: true, open: true }
-    );
-    const physicalSection = createPanelSection(
-      "Closed-Chain & Axis",
-      "Edit J2/J3/J4 linkage params and axis lines.",
-      [physicalTools],
-      { collapsible: true, open: true }
-    );
-    const demoSection = createPanelSection(
-      "IK + Pseudo-FEA Demo",
-      "Fast visual demo mode; not a real material simulation.",
-      [demoTools, demoLegend, demoVisualGrid, demoReadout],
-      { collapsible: true, open: false }
-    );
-
-    servoPanel.append(
-      panelHeader,
-      commonSection,
-      presetSection,
-      coordSection,
-      physicalSection,
-      demoSection,
-      grid
-    );
-  }
+  renderServoPanelLayout({
+    frontMinimalMode: FRONT_MINIMAL_MODE,
+    servoPanel,
+    panelHeader,
+    panelTools,
+    viewTools,
+    configTools,
+    presetTools,
+    coordTools,
+    coordReadout,
+    physicalTools,
+    demoTools,
+    demoLegend,
+    demoVisualGrid,
+    demoReadout,
+    grid,
+    createPanelSection
+  });
   replaceMojibakeInDom(servoPanel);
 }
 
 function buildServoPanelFallback(error) {
-  if (!servoPanel) return;
-  servoPanel.innerHTML = "";
-
-  const section = document.createElement("section");
-  section.className = "panel-section";
-
-  const title = document.createElement("h3");
-  title.className = "panel-section-title";
-  title.textContent = "Debug Panel Load Failed";
-  const hint = document.createElement("p");
-  hint.className = "panel-section-hint";
-  hint.textContent = "Please refresh. If it still fails, check logs and report errors.";
-
-  const retryBtn = document.createElement("button");
-  retryBtn.textContent = "Reload Debug Panel";
-  retryBtn.addEventListener("click", () => {
-    renderServoPanelSafely(jointStates);
+  buildServoPanelFallbackView({
+    servoPanel,
+    renderServoPanelSafely,
+    jointStates,
+    error
   });
-
-  const detail = document.createElement("pre");
-  detail.className = "demo-readout";
-  detail.textContent = `Error Details: ${String(error || "unknown error")}`;
-  section.append(title, hint, retryBtn, detail);
-  servoPanel.append(section);
 }
 
 function renderServoPanelSafely(states = jointStates) {

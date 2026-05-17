@@ -1,0 +1,142 @@
+:root {
+  --bg: #f1f4f8;
+  --panel: #ffffff;
+  --line: #d6dee8;
+  --text: #1e2a38;
+  --muted: #5f6f84;
+  --accent: #0466c8;
+  --accent-strong: #034078;
+  --good: #3a8f46;
+  --warn: #d9841f;
+  --risk: #c92a2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 15% 0%, #ffffff 0%, #ecf2f9 34%, #dfe9f3 100%);
+  color: var(--text);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.app-shell {
+  width: min(1800px, 96vw);
+  margin: 16px auto;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f5faff 100%);
+}
+
+.title-block h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.title-block p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.top-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.section-head h2 {
+  margin: 4px 0 6px;
+  font-size: 16px;
+}
+
+.section-head p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.btn {
+  border: 1px solid #8ba0b8;
+  background: #f8fbff;
+  color: #183049;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #eef6ff;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.25);
+}
+
+.btn-strong {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.btn-strong:hover {
+  filter: brightness(1.05);
+}
+
+.ghost-btn {
+  background: #ffffff;
+}
+
+.logs {
+  margin: 8px 0 0;
+  border: 1px solid var(--line);
+  background: #f8fbff;
+  border-radius: 10px;
+  min-height: 150px;
+  max-height: 220px;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #1d3f62;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    width: 98vw;
+    margin: 8px auto;
+  }
+}

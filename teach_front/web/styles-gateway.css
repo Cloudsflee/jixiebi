@@ -1,0 +1,133 @@
+.app-main {
+  margin-top: 12px;
+  transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+body.needs-link .app-main {
+  opacity: 0.28;
+  filter: saturate(0.78);
+  pointer-events: none;
+  user-select: none;
+}
+
+.gate-card {
+  margin-bottom: 12px;
+  border: 1px solid #c8d7e5;
+  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #f4f8fd 100%);
+  box-shadow: 0 10px 28px rgba(16, 42, 66, 0.05);
+}
+
+.gate-card.is-passed {
+  border-color: #b9d8c1;
+  background: linear-gradient(135deg, #f7fff9 0%, #f5fbff 100%);
+}
+
+.gate-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gate-row label {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gate-row #armWsUrl {
+  flex: 1 1 320px;
+  min-width: 240px;
+  max-width: 520px;
+  border: 1px solid #becbda;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+}
+
+.gate-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e8eff7;
+  color: #425c79;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gate-status.tone-ok {
+  background: #dff6e5;
+  color: #1d7f37;
+}
+
+.gate-status.tone-warn {
+  background: #fff3db;
+  color: #a36300;
+}
+
+.gate-status.tone-bad {
+  background: #ffe4e4;
+  color: #b12f2f;
+}
+
+.gate-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.gate-panel {
+  border: 1px solid #d8e3ef;
+  border-radius: 12px;
+  background: #fcfeff;
+  padding: 10px 12px;
+}
+
+.gate-panel h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #12395d;
+}
+
+.gate-steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: #4f6f90;
+  line-height: 1.45;
+}
+
+.gate-logs {
+  min-height: 180px;
+  max-height: 260px;
+}
+
+.gate-only-shell {
+  width: min(1160px, 94vw);
+  margin-top: 28px;
+}
+
+.gate-only-card {
+  margin-top: 10px;
+}
+
+@media (max-width: 1500px) {
+  .gate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .gate-row #armWsUrl {
+    max-width: none;
+  }
+}

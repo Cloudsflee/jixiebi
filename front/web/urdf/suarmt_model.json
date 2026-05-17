@@ -1,0 +1,389 @@
+{
+  "generatedAt": "2026-05-15T06:34:45.200Z",
+  "source": {
+    "urdf": "SuArmT/urdf/SuArmT.urdf",
+    "csv": "SuArmT/urdf/SuArmT.csv"
+  },
+  "warnings": [],
+  "rootLink": "base_link",
+  "links": [
+    {
+      "name": "base_link",
+      "target": "base",
+      "meshFilename": "package://SuArmT/meshes/base_link.STL",
+      "transformedMesh": "suarmt_global_base_link.STL",
+      "colorRgba": "0.498039215686275 0.498039215686275 0.498039215686275 1",
+      "worldOriginM": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "01",
+      "target": "j1",
+      "meshFilename": "package://SuArmT/meshes/01.STL",
+      "transformedMesh": "suarmt_global_01.STL",
+      "colorRgba": "0.498039215686275 0.498039215686275 0.498039215686275 1",
+      "worldOriginM": [
+        -0.057106,
+        -0.180872,
+        -0.220243
+      ]
+    },
+    {
+      "name": "02",
+      "target": "j2",
+      "meshFilename": "package://SuArmT/meshes/02.STL",
+      "transformedMesh": "suarmt_global_02.STL",
+      "colorRgba": "0.498039215686275 0.498039215686275 0.498039215686275 1",
+      "worldOriginM": [
+        -0.055954,
+        -0.188362,
+        -0.174243
+      ]
+    },
+    {
+      "name": "03",
+      "target": "j3",
+      "meshFilename": "package://SuArmT/meshes/03.STL",
+      "transformedMesh": "suarmt_global_03.STL",
+      "colorRgba": "0.498039215686275 0.498039215686275 0.498039215686275 1",
+      "worldOriginM": [
+        -0.064622,
+        -0.179857,
+        -0.039246
+      ]
+    },
+    {
+      "name": "04",
+      "target": "j4",
+      "meshFilename": "package://SuArmT/meshes/04.STL",
+      "transformedMesh": "suarmt_global_04.STL",
+      "colorRgba": "0.498039215686275 0.498039215686275 0.498039215686275 1",
+      "worldOriginM": [
+        -0.176396,
+        -0.14326,
+        -0.124058
+      ]
+    },
+    {
+      "name": "05",
+      "target": "j5",
+      "meshFilename": "package://SuArmT/meshes/05.STL",
+      "transformedMesh": "suarmt_global_05.STL",
+      "colorRgba": "1 0.949019607843137 0.909803921568627 1",
+      "worldOriginM": [
+        -0.219411,
+        -0.129499,
+        -0.15582
+      ]
+    },
+    {
+      "name": "06",
+      "target": "j6",
+      "meshFilename": "package://SuArmT/meshes/06.STL",
+      "transformedMesh": "suarmt_global_06.STL",
+      "colorRgba": "1 0.949019607843137 0.909803921568627 1",
+      "worldOriginM": [
+        -0.191621,
+        -0.153088,
+        -0.149529
+      ]
+    },
+    {
+      "name": "07",
+      "target": "j7",
+      "meshFilename": "package://SuArmT/meshes/07.STL",
+      "transformedMesh": "suarmt_global_07.STL",
+      "colorRgba": "1 0.949019607843137 0.909803921568627 1",
+      "worldOriginM": [
+        -0.182927,
+        -0.126472,
+        -0.149999
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "name": "01",
+      "type": "revolute",
+      "parent": "base_link",
+      "child": "01",
+      "target": "j1",
+      "parentTarget": "base",
+      "originXyzM": [
+        -0.057106,
+        -0.180872,
+        -0.220243
+      ],
+      "originRpyRad": [
+        0,
+        0,
+        2.831975
+      ],
+      "axisLocal": [
+        0,
+        0,
+        1
+      ],
+      "axisParent": [
+        0,
+        0,
+        1
+      ],
+      "axisWorld": [
+        0,
+        0,
+        1
+      ],
+      "pivotWorldM": [
+        -0.057106,
+        -0.180872,
+        -0.220243
+      ],
+      "limitLower": -1.3,
+      "limitUpper": 2
+    },
+    {
+      "name": "02",
+      "type": "revolute",
+      "parent": "01",
+      "child": "02",
+      "target": "j2",
+      "parentTarget": "j1",
+      "originXyzM": [
+        -0.00338,
+        0.006782,
+        0.046
+      ],
+      "originRpyRad": [
+        0,
+        0,
+        0
+      ],
+      "axisLocal": [
+        0,
+        -1,
+        0
+      ],
+      "axisParent": [
+        0,
+        -1,
+        0
+      ],
+      "axisWorld": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivotWorldM": [
+        -0.055954,
+        -0.188362,
+        -0.174243
+      ],
+      "limitLower": -0.5,
+      "limitUpper": 0
+    },
+    {
+      "name": "03",
+      "type": "revolute",
+      "parent": "02",
+      "child": "03",
+      "target": "j3",
+      "parentTarget": "j2",
+      "originXyzM": [
+        0.010848,
+        -0.005459,
+        0.134996
+      ],
+      "originRpyRad": [
+        0,
+        0.111243,
+        0
+      ],
+      "axisLocal": [
+        0,
+        -1,
+        0
+      ],
+      "axisParent": [
+        0,
+        -1,
+        0
+      ],
+      "axisWorld": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivotWorldM": [
+        -0.064622,
+        -0.179857,
+        -0.039246
+      ],
+      "limitLower": -0.3,
+      "limitUpper": 1
+    },
+    {
+      "name": "04",
+      "type": "revolute",
+      "parent": "03",
+      "child": "04",
+      "target": "j4",
+      "parentTarget": "j3",
+      "originXyzM": [
+        0.126298,
+        -0.0008,
+        -0.071231
+      ],
+      "originRpyRad": [
+        0,
+        0.409886,
+        0
+      ],
+      "axisLocal": [
+        0,
+        -1,
+        0
+      ],
+      "axisParent": [
+        0,
+        -1,
+        0
+      ],
+      "axisWorld": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivotWorldM": [
+        -0.176396,
+        -0.14326,
+        -0.124058
+      ],
+      "limitLower": -0.85,
+      "limitUpper": 0.5
+    },
+    {
+      "name": "05",
+      "type": "revolute",
+      "parent": "04",
+      "child": "05",
+      "target": "j5",
+      "parentTarget": "j4",
+      "originXyzM": [
+        0.054981,
+        0,
+        -0.005061
+      ],
+      "originRpyRad": [
+        0,
+        -0.172063,
+        0
+      ],
+      "axisLocal": [
+        0,
+        0,
+        -1
+      ],
+      "axisParent": [
+        0.171216,
+        0,
+        -0.985234
+      ],
+      "axisWorld": [
+        0.325757,
+        -0.104212,
+        -0.939693
+      ],
+      "pivotWorldM": [
+        -0.219411,
+        -0.129499,
+        -0.15582
+      ],
+      "limitLower": -0.85,
+      "limitUpper": 0.5
+    },
+    {
+      "name": "06",
+      "type": "revolute",
+      "parent": "04",
+      "child": "06",
+      "target": "j6",
+      "parentTarget": "j4",
+      "originXyzM": [
+        0.02266,
+        0.014,
+        -0.016362
+      ],
+      "originRpyRad": [
+        0.007902,
+        -0.171884,
+        -0.046167
+      ],
+      "axisLocal": [
+        0,
+        0,
+        1
+      ],
+      "axisParent": [
+        -0.171216,
+        0,
+        0.985234
+      ],
+      "axisWorld": [
+        -0.325757,
+        0.104212,
+        0.939693
+      ],
+      "pivotWorldM": [
+        -0.191621,
+        -0.153088,
+        -0.149529
+      ],
+      "limitLower": -0.85,
+      "limitUpper": 0.5
+    },
+    {
+      "name": "07",
+      "type": "revolute",
+      "parent": "04",
+      "child": "07",
+      "target": "j7",
+      "parentTarget": "j4",
+      "originXyzM": [
+        0.022746,
+        -0.014,
+        -0.016854
+      ],
+      "originRpyRad": [
+        0.007902,
+        -0.171884,
+        -0.046167
+      ],
+      "axisLocal": [
+        0,
+        0,
+        -1
+      ],
+      "axisParent": [
+        0.171216,
+        0,
+        -0.985234
+      ],
+      "axisWorld": [
+        0.325757,
+        -0.104212,
+        -0.939693
+      ],
+      "pivotWorldM": [
+        -0.182927,
+        -0.126472,
+        -0.149999
+      ],
+      "limitLower": -3.14,
+      "limitUpper": 3.14
+    }
+  ]
+}

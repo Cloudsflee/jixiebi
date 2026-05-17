@@ -1,0 +1,749 @@
+﻿{
+    "note":  "refactored from SuArmT URDF @ 2026-05-15T06:34:45.198Z",
+    "pivotSpace":  "local",
+    "modelBasePathCandidates":  [
+                                    "./raw/"
+                                ],
+    "collisionPairs":  [
+                           {
+                               "a":  "base",
+                               "b":  "j2",
+                               "maxOverlapRatio":  0.025
+                           },
+                           {
+                               "a":  "base",
+                               "b":  "j3",
+                               "maxOverlapRatio":  0.02
+                           },
+                           {
+                               "a":  "j1",
+                               "b":  "j3",
+                               "maxOverlapRatio":  0.02
+                           },
+                           {
+                               "a":  "j2",
+                               "b":  "j4",
+                               "maxOverlapRatio":  0.01
+                           }
+                       ],
+    "parts":  [
+                  {
+                      "target":  "base",
+                      "color":  "#7e8a97",
+                      "files":  [
+                                    "suarmt_global_base_link.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j1",
+                      "color":  "#4e79a7",
+                      "files":  [
+                                    "suarmt_global_01.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j2",
+                      "color":  "#f28e2b",
+                      "files":  [
+                                    "suarmt_global_02.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j3",
+                      "color":  "#59a14f",
+                      "files":  [
+                                    "suarmt_global_03.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j4",
+                      "color":  "#e15759",
+                      "files":  [
+                                    "suarmt_global_04.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j5",
+                      "color":  "#b07aa1",
+                      "files":  [
+                                    "suarmt_global_05.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j6",
+                      "color":  "#76b7b2",
+                      "files":  [
+                                    "suarmt_global_06.STL"
+                                ]
+                  },
+                  {
+                      "target":  "j7",
+                      "color":  "#edc948",
+                      "files":  [
+                                    "suarmt_global_07.STL"
+                                ]
+                  }
+              ],
+    "joints":  [
+                   {
+                       "name":  "J1",
+                       "target":  "j1",
+                       "servoId":  1,
+                       "axis":  "z",
+                       "invert":  false,
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -74.48451336700703,
+                       "maxDeg":  114.59155902616465,
+                       "defaultPos":  394,
+                       "defaultTime":  300,
+                       "pivot":  [
+                                     -57.1064,
+                                     -180.8724,
+                                     -220.2428
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -74.48451336700703,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  114.59155902616465,
+                                                  "pos":  1000
+                                              }
+                                          ],
+                       "backlash":  {
+                                        "enabled":  false,
+                                        "forwardPos":  0,
+                                        "reversePos":  0,
+                                        "switchExtraPos":  0
+                                    },
+                       "parentTarget":  "base",
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "urdfJointName":  "01",
+                       "urdfParentLink":  "base_link",
+                       "urdfChildLink":  "01",
+                       "urdfAxisWorld":  [
+                                             0,
+                                             0,
+                                             1
+                                         ],
+                       "pivotSpace":  "local",
+                       "urdfAxisParent":  [
+                                              0,
+                                              0,
+                                              1
+                                          ],
+                       "uiHidden":  false,
+                       "controlRole":  "active",
+                       "derivedType":  "",
+                       "derivedSourceTarget":  "",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  0,
+                       "derivedOffsetDeg":  0
+                   },
+                   {
+                       "name":  "J2",
+                       "target":  "j2",
+                       "servoId":  4,
+                       "axis":  "y",
+                       "invert":  false,
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -28.64788975654116,
+                       "maxDeg":  0,
+                       "defaultPos":  1000,
+                       "defaultTime":  300,
+                       "pivot":  [
+                                     -55.9535,
+                                     -188.3618,
+                                     -174.2428
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "collisionGuardEnabled":  false,
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -28.64788975654116,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  0,
+                                                  "pos":  1000
+                                              }
+                                          ],
+                       "backlash":  {
+                                        "enabled":  false,
+                                        "forwardPos":  0,
+                                        "reversePos":  0,
+                                        "switchExtraPos":  0
+                                    },
+                       "parentTarget":  "j1",
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "urdfJointName":  "02",
+                       "urdfParentLink":  "01",
+                       "urdfChildLink":  "02",
+                       "urdfAxisWorld":  [
+                                             0.304694,
+                                             0.95245,
+                                             0
+                                         ],
+                       "pivotSpace":  "local",
+                       "urdfAxisParent":  [
+                                              0,
+                                              -1,
+                                              0
+                                          ],
+                       "uiHidden":  false,
+                       "controlRole":  "active",
+                       "derivedType":  "",
+                       "derivedSourceTarget":  "",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  0,
+                       "derivedOffsetDeg":  0
+                   },
+                   {
+                       "name":  "J3",
+                       "target":  "j3",
+                       "servoId":  2,
+                       "axis":  "y",
+                       "invert":  false,
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -17.188733853924695,
+                       "maxDeg":  57.29577951308232,
+                       "defaultPos":  231,
+                       "defaultTime":  300,
+                       "pivot":  [
+                                     -64.6223,
+                                     -179.8569,
+                                     -39.2464
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "closureGain":  0.9,
+                       "closureMaxDeg":  75,
+                       "closureIterations":  4,
+                       "closurePick":  "largest",
+                       "closureClusterCount":  4,
+                       "closureMinClusterPoints":  10,
+                       "closureClusterRole":  "secondary",
+                       "collisionGuardEnabled":  false,
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -17.188733853924695,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  57.29577951308232,
+                                                  "pos":  1000
+                                              }
+                                          ],
+                       "backlash":  {
+                                        "enabled":  false,
+                                        "forwardPos":  0,
+                                        "reversePos":  0,
+                                        "switchExtraPos":  0
+                                    },
+                       "parentTarget":  "j2",
+                       "urdfJointName":  "03",
+                       "urdfParentLink":  "02",
+                       "urdfChildLink":  "03",
+                       "urdfAxisWorld":  [
+                                             0.304694,
+                                             0.95245,
+                                             0
+                                         ],
+                       "pivotSpace":  "local",
+                       "urdfAxisParent":  [
+                                              0,
+                                              -1,
+                                              0
+                                          ],
+                       "uiHidden":  false,
+                       "controlRole":  "active",
+                       "derivedType":  "",
+                       "derivedSourceTarget":  "",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  0,
+                       "derivedOffsetDeg":  0
+                   },
+                   {
+                       "name":  "J4",
+                       "target":  "j4",
+                       "servoId":  4,
+                       "axis":  "y",
+                       "invert":  false,
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -179.9087476710785,
+                       "maxDeg":  179.9087476710785,
+                       "defaultPos":  500,
+                       "defaultTime":  300,
+                       "pivot":  [
+                                     -176.396,
+                                     -143.2599,
+                                     -124.0577
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "closureGain":  0.7,
+                       "closureMaxDeg":  45,
+                       "closureIterations":  3,
+                       "closurePick":  "largest",
+                       "closureClusterCount":  3,
+                       "closureMinClusterPoints":  8,
+                       "closureClusterRole":  "primary",
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -179.9087476710785,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  179.9087476710785,
+                                                  "pos":  1000
+                                              }
+                                          ],
+                       "backlash":  {
+                                        "enabled":  false,
+                                        "forwardPos":  0,
+                                        "reversePos":  0,
+                                        "switchExtraPos":  0
+                                    },
+                       "parentTarget":  "j3",
+                       "urdfJointName":  "04",
+                       "urdfParentLink":  "03",
+                       "urdfChildLink":  "04",
+                       "urdfAxisWorld":  [
+                                             0.304694,
+                                             0.95245,
+                                             0
+                                         ],
+                       "pivotSpace":  "local",
+                       "urdfAxisParent":  [
+                                              0,
+                                              -1,
+                                              0
+                                          ],
+                       "uiHidden":  true,
+                       "controlRole":  "derived",
+                       "derivedType":  "offset_minus_sum",
+                       "derivedSourceTarget":  "",
+                       "derivedSourceTargets":  [
+                                                    "j2",
+                                                    "j3"
+                                                ],
+                       "derivedSourceName":  "J4_OFFSET",
+                       "derivedSourceNames":  [
+                                                  "J2",
+                                                  "J3"
+                                              ],
+                       "derivedGain":  0,
+                       "derivedOffsetDeg":  0
+                   },
+                   {
+                       "name":  "J5",
+                       "target":  "j5",
+                       "parentTarget":  "j4",
+                       "uiHidden":  false,
+                       "controlRole":  "active",
+                       "derivedType":  "",
+                       "derivedSourceTarget":  "",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  0,
+                       "derivedOffsetDeg":  0,
+                       "pivotSpace":  "local",
+                       "servoId":  3,
+                       "axis":  "z",
+                       "pivot":  [
+                                     -219.4114,
+                                     -129.499,
+                                     -155.8198
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "urdfJointName":  "05",
+                       "urdfParentLink":  "04",
+                       "urdfChildLink":  "05",
+                       "urdfAxisParent":  [
+                                              0.171216,
+                                              0,
+                                              -0.985234
+                                          ],
+                       "urdfAxisWorld":  [
+                                             0.325757,
+                                             -0.104212,
+                                             -0.939693
+                                         ],
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -48.70141258611997,
+                       "maxDeg":  28.64788975654116,
+                       "defaultPos":  630,
+                       "defaultTime":  300,
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -48.70141258611997,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  28.64788975654116,
+                                                  "pos":  1000
+                                              }
+                                          ]
+                   },
+                   {
+                       "name":  "J6",
+                       "target":  "j6",
+                       "parentTarget":  "j4",
+                       "uiHidden":  true,
+                       "controlRole":  "derived",
+                       "derivedType":  "follow",
+                       "derivedSourceTarget":  "j5",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "J5",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  1,
+                       "derivedOffsetDeg":  0,
+                       "pivotSpace":  "local",
+                       "servoId":  3,
+                       "axis":  "z",
+                       "pivot":  [
+                                     -191.6212,
+                                     -153.0882,
+                                     -149.5293
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "urdfJointName":  "06",
+                       "urdfParentLink":  "04",
+                       "urdfChildLink":  "06",
+                       "urdfAxisParent":  [
+                                              -0.171216,
+                                              0,
+                                              0.985234
+                                          ],
+                       "urdfAxisWorld":  [
+                                             -0.325757,
+                                             0.104212,
+                                             0.939693
+                                         ],
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -48.70141258611997,
+                       "maxDeg":  28.64788975654116,
+                       "defaultPos":  630,
+                       "defaultTime":  300,
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -48.70141258611997,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  28.64788975654116,
+                                                  "pos":  1000
+                                              }
+                                          ]
+                   },
+                   {
+                       "name":  "J7",
+                       "target":  "j7",
+                       "parentTarget":  "j4",
+                       "uiHidden":  true,
+                       "controlRole":  "derived",
+                       "derivedType":  "follow",
+                       "derivedSourceTarget":  "j5",
+                       "derivedSourceTargets":  [
+
+                                                ],
+                       "derivedSourceName":  "J5",
+                       "derivedSourceNames":  [
+
+                                              ],
+                       "derivedGain":  1,
+                       "derivedOffsetDeg":  0,
+                       "pivotSpace":  "local",
+                       "servoId":  3,
+                       "axis":  "z",
+                       "pivot":  [
+                                     -182.9268,
+                                     -126.4717,
+                                     -149.9991
+                                 ],
+                       "pivotAdjust":  [
+                                           0,
+                                           0,
+                                           0
+                                       ],
+                       "closureEnabled":  false,
+                       "closureParentTarget":  "",
+                       "urdfJointName":  "07",
+                       "urdfParentLink":  "04",
+                       "urdfChildLink":  "07",
+                       "urdfAxisParent":  [
+                                              0.171216,
+                                              0,
+                                              -0.985234
+                                          ],
+                       "urdfAxisWorld":  [
+                                             0.325757,
+                                             -0.104212,
+                                             -0.939693
+                                         ],
+                       "min":  0,
+                       "max":  1000,
+                       "guardMin":  0,
+                       "guardMax":  1000,
+                       "minDeg":  -48.70141258611997,
+                       "maxDeg":  28.64788975654116,
+                       "defaultPos":  630,
+                       "defaultTime":  300,
+                       "servoMapPoints":  [
+                                              {
+                                                  "deg":  -48.70141258611997,
+                                                  "pos":  0
+                                              },
+                                              {
+                                                  "deg":  28.64788975654116,
+                                                  "pos":  1000
+                                              }
+                                          ]
+                   }
+               ],
+    "physicalKinematics":  {
+                               "enabled":  false,
+                               "type":  "four_bar_dual_hole",
+                               "note":  "Fill all dimensions from CAD drawings, then set enabled=true.",
+                               "space":  "robot_local",
+                               "planeAxis":  "x",
+                               "driverTarget":  "j2",
+                               "branch":  "closest",
+                               "joints":  {
+                                              "j2":  {
+                                                         "target":  "j2",
+                                                         "pivot":  [
+                                                                       -55.9535,
+                                                                       -188.3618,
+                                                                       -174.2428
+                                                                   ],
+                                                         "activeLinkLength":  135.0453738,
+                                                         "angleOffsetDeg":  0
+                                                     },
+                                              "j3":  {
+                                                         "target":  "j3",
+                                                         "pivot":  [
+                                                                       -64.6223,
+                                                                       -179.8569,
+                                                                       -39.2464
+                                                                   ],
+                                                         "activeLinkLength":  145.0310282,
+                                                         "angleOffsetDeg":  0
+                                                     },
+                                              "j4":  {
+                                                         "target":  "j4",
+                                                         "pivot":  [
+                                                                       -176.396,
+                                                                       -143.2599,
+                                                                       -124.0577
+                                                                   ],
+                                                         "angleOffsetDeg":  0
+                                                     }
+                                          },
+                               "endEffector":  {
+                                                   "yellowHoleLocal":  [
+                                                                           0,
+                                                                           0,
+                                                                           0
+                                                                       ],
+                                                   "greenHoleLocal":  [
+                                                                          0,
+                                                                          0,
+                                                                          0
+                                                                      ]
+                                               }
+                           },
+    "demoKinematics":  {
+                           "baseHeight":  86,
+                           "link2":  135.0453738,
+                           "link3":  145.0310282,
+                           "tool":  70,
+                           "wristPitchDeg":  0
+                       },
+    "demoFea":  {
+                    "yieldStressMpa":  210,
+                    "dynamicGain":  0.35,
+                    "payloadScale":  1,
+                    "sections":  {
+                                     "j2":  {
+                                                "leverMm":  135.0453738,
+                                                "strengthArea":  90,
+                                                "compliance":  0.011
+                                            },
+                                     "j3":  {
+                                                "leverMm":  145.0310282,
+                                                "strengthArea":  78,
+                                                "compliance":  0.014
+                                            },
+                                     "j4":  {
+                                                "leverMm":  70,
+                                                "strengthArea":  64,
+                                                "compliance":  0.019
+                                            }
+                                 }
+                },
+    "demoRuntime":  {
+                        "enabled":  false,
+                        "autoFea":  true,
+                        "payloadNewton":  8,
+                        "elbow":  "down",
+                        "wristPitchDeg":  0,
+                        "target":  {
+                                       "x":  240,
+                                       "y":  170,
+                                       "z":  0
+                                   }
+                    },
+    "assemblyLock":  {
+                         "enabled":  true,
+                         "disableCouplings":  true,
+                         "autoInferPivots":  false,
+                         "maxAutoShiftMm":  280,
+                         "source":  "SuArmT/urdf/SuArmT.urdf + SuArmT/urdf/SuArmT.csv",
+                         "note":  "URDF-based model hierarchy. parentTarget and axis are bound to SuArmT export."
+                     },
+    "motionLocks":  {
+                        "axisByTarget":  {
+                                             "j1":  "z",
+                                             "j2":  "y",
+                                             "j3":  "y",
+                                             "j4":  "y",
+                                             "j5":  "z",
+                                             "j6":  "z",
+                                             "j7":  "z"
+                                         },
+                        "parentAxisByTarget":  {
+                                                   "j1":  [
+                                                              0,
+                                                              0,
+                                                              1
+                                                          ],
+                                                   "j2":  [
+                                                              0.304694,
+                                                              0.95245,
+                                                              0
+                                                          ],
+                                                   "j3":  [
+                                                              0.304694,
+                                                              0.95245,
+                                                              0
+                                                          ],
+                                                   "j4":  [
+                                                              0.304694,
+                                                              0.95245,
+                                                              0
+                                                          ],
+                                                   "j5":  [
+                                                              0.325757,
+                                                              -0.104212,
+                                                              -0.939693
+                                                          ],
+                                                   "j6":  [
+                                                              -0.325757,
+                                                              0.104212,
+                                                              0.939693
+                                                          ],
+                                                   "j7":  [
+                                                              0.325757,
+                                                              -0.104212,
+                                                              -0.939693
+                                                          ]
+                                               }
+                    },
+    "urdfModel":  {
+                      "source":  "SuArmT/urdf/SuArmT.urdf",
+                      "csv":  "SuArmT/urdf/SuArmT.csv",
+                      "rootLink":  "base_link",
+                      "generatedAt":  "2026-05-15T06:34:45.199Z"
+                  },
+    "frameCalibration":  {
+                             "enabled":  true,
+                             "mode":  "fixed_j1_front",
+                             "upTarget":  "j1",
+                             "frontTarget":  "j4",
+                             "frontAxis":  "x",
+                             "yawOffsetDeg":  0,
+                             "minFrontBaselineMm":  20,
+                             "useDynamicFallback":  false,
+                             "note":  "Lock J1-up and J4-front at boot to keep stable zero orientation."
+                         }
+}

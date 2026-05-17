@@ -1,0 +1,52 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>鏈烘鑷傛暟瀛楀鐢熻仈璋冮潰鏉?/title>
+  <link rel="stylesheet" href="./styles.css?v=20260424-1718" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero card">
+      <div class="hero-head">
+        <h1>鏈烘鑷傛暟瀛楀鐢熻仈璋冮潰鏉?/h1>
+        <p>姣忎釜 J 妯″潡鍏抽敭杩愬姩鍙傛暟鍙湪缃戦〉瀹炴椂璋冩暣</p>
+      </div>
+      <div class="gateway-row">
+        <label for="wsUrl">WS 鍦板潃</label>
+        <input id="wsUrl" value="ws://127.0.0.1:8787" />
+        <button id="connectBtn">杩炴帴</button>
+        <button id="pingBtn">PING</button>
+        <button id="togglePanelBtn" class="ghost-btn">闅愯棌璋冭瘯闈㈡澘</button>
+        <button id="refreshPanelBtn" class="ghost-btn">鍒锋柊璋冭瘯闈㈡澘</button>
+        <span id="status">Gateway: not connected</span>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <section class="viewer-card card">
+        <div class="section-head">
+          <h2>3D 瑙嗗浘</h2>
+          <p id="viewerStatus">Viewer: not loaded</p>
+        </div>
+        <div id="viewer"></div>
+      </section>
+
+      <section class="panel-card card">
+        <div id="servoPanel"></div>
+      </section>
+    </section>
+
+    <section class="log-card card">
+      <div class="section-head">
+        <h2>鏃ュ織</h2>
+      </div>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js?v=20260424-1718"></script>
+</body>
+</html>
+

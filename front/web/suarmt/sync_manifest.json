@@ -1,0 +1,17 @@
+{
+  "syncedAt": "2026-05-14T16:12:00.931Z",
+  "source": "D:\\04_projects\\国创-数字孪生机械臂\\STM32\\SuArmT",
+  "copiedDirs": [
+    "config",
+    "launch",
+    "meshes",
+    "urdf"
+  ],
+  "copiedFiles": [
+    "CMakeLists.txt",
+    "package.xml",
+    "export.log",
+    "SuArmT_URDF_人工修正清单(1).md"
+  ],
+  "copiedFileCount": 18
+}

@@ -1,0 +1,15 @@
+{
+  "name": "arm-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CH340 serial <-> WebSocket gateway for STM32 arm controller",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "serialport": "^13.0.0",
+    "ws": "^8.18.3"
+  }
+}

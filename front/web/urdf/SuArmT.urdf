@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="SuArmT">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.0530971491111352 -0.181552944439544 -0.246568639926266"
+        rpy="0 0 0" />
+      <mass
+        value="0.293651530893789" />
+      <inertia
+        ixx="0.000568046016400762"
+        ixy="6.90943148326391E-06"
+        ixz="1.42837012826497E-06"
+        iyy="0.000571559213356223"
+        iyz="-1.31743193708887E-06"
+        izz="0.00103032274010665" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.498039215686275 0.498039215686275 0.498039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="01">
+    <inertial>
+      <origin
+        xyz="0.00265846356424784 -0.00133215884626428 0.0272481546974579"
+        rpy="0 0 0" />
+      <mass
+        value="0.189438986392115" />
+      <inertia
+        ixx="0.000113431869552128"
+        ixy="-5.64451862518995E-06"
+        ixz="2.49559438919189E-06"
+        iyy="0.0001107268395118"
+        iyz="6.17366165756936E-06"
+        izz="0.000119492587982596" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/01.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.498039215686275 0.498039215686275 0.498039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/01.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="01"
+    type="revolute">
+    <origin
+      xyz="-0.0571064065866175 -0.180872363273024 -0.220242791058023"
+      rpy="0 0 2.83197511584815" />
+    <parent
+      link="base_link" />
+    <child
+      link="01" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-1.3"
+      upper="2"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="02">
+    <inertial>
+      <origin
+        xyz="0.0115047248501354 -0.00810709798750053 0.051589588786128"
+        rpy="0 0 0" />
+      <mass
+        value="0.111576084638764" />
+      <inertia
+        ixx="0.000234483161114486"
+        ixy="-8.57451004887965E-07"
+        ixz="6.29463949966311E-06"
+        iyy="0.00023331811204117"
+        iyz="-8.92179194748288E-06"
+        izz="3.04539911034034E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/02.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.498039215686275 0.498039215686275 0.498039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/02.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="02"
+    type="revolute">
+    <origin
+      xyz="-0.00338008664788971 0.0067820705615555 0.0460000000000001"
+      rpy="0 0 0" />
+    <parent
+      link="01" />
+    <child
+      link="02" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.5"
+      upper="0"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="03">
+    <inertial>
+      <origin
+        xyz="0.0403125325245319 0.00153563322820774 -0.0081567935813986"
+        rpy="0 0 0" />
+      <mass
+        value="0.0550849242755392" />
+      <inertia
+        ixx="6.3486228520809E-05"
+        ixy="6.15236365966553E-06"
+        ixz="7.22353558112642E-05"
+        iyy="0.000183226293872354"
+        iyz="-2.72290368246727E-06"
+        izz="0.000138238474076084" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/03.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.498039215686275 0.498039215686275 0.498039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/03.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="03"
+    type="revolute">
+    <origin
+      xyz="0.0108480193677558 -0.00545917430644105 0.134996351042998"
+      rpy="0 0.111242962039174 0" />
+    <parent
+      link="02" />
+    <child
+      link="03" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.3"
+      upper="1"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="04">
+    <inertial>
+      <origin
+        xyz="0.0301276790093809 -8.91923334647715E-06 0.0189630827351482"
+        rpy="0 0 0" />
+      <mass
+        value="0.0402531816879038" />
+      <inertia
+        ixx="1.228558445044E-05"
+        ixy="-9.50822319460619E-09"
+        ixz="-5.38433194630375E-06"
+        iyy="2.65878521080658E-05"
+        iyz="9.14433319238472E-10"
+        izz="2.27541238022531E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/04.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.498039215686275 0.498039215686275 0.498039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/04.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="04"
+    type="revolute">
+    <origin
+      xyz="0.126298015351435 -0.000799999999999051 -0.0712306908452539"
+      rpy="0 0.409886167684167 0" />
+    <parent
+      link="03" />
+    <child
+      link="04" />
+    <axis
+      xyz="0 -1 0" />
+    <limit
+      lower="-0.85"
+      upper="0.5"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="05">
+    <inertial>
+      <origin
+        xyz="2.77555756156289E-17 -2.77555756156289E-17 0.00500000000000002"
+        rpy="0 0 0" />
+      <mass
+        value="0.0153521070888643" />
+      <inertia
+        ixx="2.24974194990283E-06"
+        ixy="-1.42936809849163E-21"
+        ixz="1.29040175558272E-21"
+        iyy="2.24974194990283E-06"
+        iyz="-4.2351647362715E-21"
+        izz="4.24361544832459E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/05.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.949019607843137 0.909803921568627 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/05.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="05"
+    type="revolute">
+    <origin
+      xyz="0.0549809608824896 0 -0.00506114079786674"
+      rpy="0 -0.172063279324397 0" />
+    <parent
+      link="04" />
+    <child
+      link="05" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-0.85"
+      upper="0.5"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="06">
+    <inertial>
+      <origin
+        xyz="0.0138852347763508 0.0151916879325929 0.00635485339552659"
+        rpy="0 0 0" />
+      <mass
+        value="0.00878748583243155" />
+      <inertia
+        ixx="4.72138799965583E-06"
+        ixy="-2.80323111635487E-06"
+        ixz="1.85740267317673E-07"
+        iyy="2.42028724397618E-06"
+        iyz="3.46298383727567E-07"
+        izz="6.81316188714295E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/06.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.949019607843137 0.909803921568627 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/06.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="06"
+    type="revolute">
+    <origin
+      xyz="0.0226604478767277 0.0139999999999982 -0.0163617842079428"
+      rpy="0.00790172500636039 -0.171883538862549 -0.0461666685391416" />
+    <parent
+      link="04" />
+    <child
+      link="06" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.85"
+      upper="0.5"
+      effort="0"
+      velocity="0" />
+  </joint>
+  <link
+    name="07">
+    <inertial>
+      <origin
+        xyz="0.019123424392596 -0.0177235877465371 0.00457621875695141"
+        rpy="0 0 0" />
+      <mass
+        value="0.00647217744856026" />
+      <inertia
+        ixx="3.10871255703172E-06"
+        ixy="2.58386188181312E-06"
+        ixz="7.69744545540528E-08"
+        iyy="2.62710925450106E-06"
+        iyz="-7.75789243970793E-08"
+        izz="5.60892692551295E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/07.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.949019607843137 0.909803921568627 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://SuArmT/meshes/07.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="07"
+    type="revolute">
+    <origin
+      xyz="0.0227460556388097 -0.0139999999999925 -0.0168544010073608"
+      rpy="0.0079017250063604 -0.171883538862555 -0.0461666685391416" />
+    <parent
+      link="04" />
+    <child
+      link="07" />
+    <axis
+      xyz="0 0 -1" />
+    <limit
+      lower="-3.14"
+      upper="3.14"
+      effort="0"
+      velocity="0" />
+  </joint>
+</robot>

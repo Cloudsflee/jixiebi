@@ -1,0 +1,50 @@
+# GCC build outputs
+gcc/build/
+
+# Common editor/temp files
+*.tmp
+*.log
+*.swp
+*.bak
+
+
+# Node gateway artifacts
+front/gateway/node_modules/
+front/gateway/.npm_cache/
+front/gateway/npm-debug.log*
+
+# Local mirrored STL cache for static serving from front/web
+front/web/raw/
+# 编译中间文件和输出
+*.o
+*.d
+*.crf
+*.htm
+*.dep
+*.lst
+*.map
+*.axf
+*.hex
+*.bin
+*.elf
+*.iex
+*.lnp
+*.sct
+*.build_log.htm
+
+# 编译器/IDE 产生的文件夹 (根据你使用的IDE选择性保留)
+MDK-ARM/DebugConfig/
+MDK-ARM/RTE/
+MDK-ARM/*.uvgui.*
+MDK-ARM/*.uvoptx
+MDK-ARM/*.uvprojx.saved_uv4
+MDK-ARM/Objects/
+MDK-ARM/Listings/
+Debug/
+Release/
+.vscode/
+
+# 如果你在这个目录下混入了数字孪生的前端资产或三维模型，也可以视情况过滤
+# *.gltf
+# *.obj
+# *.stl

@@ -1,0 +1,194 @@
+{
+  "generatedAt": "2026-04-23T15:40:35.017Z",
+  "source": {
+    "packDir": "D:\\04_projects\\国创-数字孪生机械臂\\STM32\\temp\\sldasm_pack",
+    "rawDir": "D:\\04_projects\\国创-数字孪生机械臂\\STM32\\front\\web\\raw"
+  },
+  "summary": {
+    "sldasmCount": 2,
+    "sldprtCount": 14,
+    "rawStlCount": 14,
+    "unmatchedSldprtCount": 0,
+    "unmatchedRawStlCount": 0
+  },
+  "sldasmFiles": [
+    "(29课最后保存)(答案)夹爪装配体.SLDASM",
+    "装配体（整体）4.SLDASM"
+  ],
+  "sldprtFiles": [
+    "齿轮1.1.SLDPRT",
+    "齿轮抓夹（上）1.1.SLDPRT",
+    "齿轮抓夹（下）.SLDPRT",
+    "底座.SLDPRT",
+    "舵机.SLDPRT",
+    "夹爪支架（大）da.SLDPRT",
+    "三角形连杆.SLDPRT",
+    "上水平连杆.SLDPRT",
+    "下水平连杆.SLDPRT",
+    "旋转底座.SLDPRT",
+    "BC连杆.SLDPRT",
+    "C轴连杆.SLDPRT",
+    "C轴摇杆.SLDPRT",
+    "CD连杆.SLDPRT"
+  ],
+  "partMappings": [
+    {
+      "part": "齿轮1.1.SLDPRT",
+      "normalized": "齿轮1.1",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 齿轮1.1-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 齿轮1.1-1.STL"
+      ]
+    },
+    {
+      "part": "齿轮抓夹（上）1.1.SLDPRT",
+      "normalized": "齿轮抓夹上1.1",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 齿轮抓夹（上）1.1-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 齿轮抓夹（上）1.1-1.STL"
+      ]
+    },
+    {
+      "part": "齿轮抓夹（下）.SLDPRT",
+      "normalized": "齿轮抓夹下",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 齿轮抓夹（下）-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 齿轮抓夹（下）-1.STL"
+      ]
+    },
+    {
+      "part": "底座.SLDPRT",
+      "normalized": "底座",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 底座-1.STL",
+        "装配体（整体）4 - 旋转底座-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 底座-1.STL"
+      ]
+    },
+    {
+      "part": "舵机.SLDPRT",
+      "normalized": "舵机",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 舵机-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 舵机-1.STL"
+      ]
+    },
+    {
+      "part": "夹爪支架（大）da.SLDPRT",
+      "normalized": "夹爪支架大da",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 夹爪支架（大）da-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 夹爪支架（大）da-1.STL"
+      ]
+    },
+    {
+      "part": "三角形连杆.SLDPRT",
+      "normalized": "三角形连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 三角形连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 三角形连杆-1.STL"
+      ]
+    },
+    {
+      "part": "上水平连杆.SLDPRT",
+      "normalized": "上水平连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 上水平连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 上水平连杆-1.STL"
+      ]
+    },
+    {
+      "part": "下水平连杆.SLDPRT",
+      "normalized": "下水平连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 下水平连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 下水平连杆-1.STL"
+      ]
+    },
+    {
+      "part": "旋转底座.SLDPRT",
+      "normalized": "旋转底座",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - 旋转底座-1.STL",
+        "装配体（整体）4 - 底座-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - 旋转底座-1.STL"
+      ]
+    },
+    {
+      "part": "BC连杆.SLDPRT",
+      "normalized": "bc连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - BC连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - BC连杆-1.STL"
+      ]
+    },
+    {
+      "part": "C轴连杆.SLDPRT",
+      "normalized": "c轴连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - C轴连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - C轴连杆-1.STL"
+      ]
+    },
+    {
+      "part": "C轴摇杆.SLDPRT",
+      "normalized": "c轴摇杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - C轴摇杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - C轴摇杆-1.STL"
+      ]
+    },
+    {
+      "part": "CD连杆.SLDPRT",
+      "normalized": "cd连杆",
+      "bestScore": 100,
+      "stlCandidates": [
+        "装配体（整体）4 - CD连杆-1.STL"
+      ],
+      "bestMatches": [
+        "装配体（整体）4 - CD连杆-1.STL"
+      ]
+    }
+  ],
+  "unmatchedSldprt": [],
+  "unmatchedRawStl": []
+}

@@ -1,0 +1,53 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>机械臂教学辅助系统 - 连接网关</title>
+    <meta name="description" content="教学前网关连接入口页" />
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./styles.css?v=20260518-gate-split1" />
+  </head>
+  <body>
+    <div class="app-shell gate-only-shell">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>机械臂教学辅助系统</h1>
+          <p>课前连接页：网关联通确认后进入正式教学</p>
+        </div>
+      </header>
+
+      <section class="card gate-card gate-only-card">
+        <div class="section-head">
+          <h2>实体机械臂连接</h2>
+          <p id="armGateHint">请先连接真实机械臂；若仅演示可跳过直接进入教学页。</p>
+        </div>
+        <div class="gateway-row gate-row">
+          <label for="armWsUrl">WS URL</label>
+          <input id="armWsUrl" value="ws://127.0.0.1:8787" />
+          <button id="armConnectBtn" class="btn btn-strong">连接机械臂</button>
+          <button id="armPingBtn" class="btn" disabled>PING</button>
+          <button id="armEnterBtn" class="btn" disabled>进入教学页</button>
+          <button id="armSkipBtn" class="btn ghost-btn">跳过连接</button>
+          <span id="armLinkStatus" class="gate-status">未连接</span>
+        </div>
+        <div class="gate-grid">
+          <div class="gate-panel">
+            <h3>连接流程</h3>
+            <ol class="gate-steps">
+              <li>输入或确认 WebSocket 地址</li>
+              <li>点击“连接机械臂”建立链路</li>
+              <li>查看日志确认网关/串口状态</li>
+              <li>点击“进入教学页”或“跳过连接”</li>
+            </ol>
+          </div>
+          <div class="gate-panel">
+            <h3>连接日志</h3>
+            <pre id="armLinkLogs" class="logs gate-logs"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script type="module" src="./gateway.js?v=20260518-gate-split1"></script>
+  </body>
+</html>

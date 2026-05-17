@@ -1,0 +1,381 @@
+{
+  "meta": {
+    "name": "Robot Teaching Assistant Demo (SuArmT Refactored)",
+    "version": "2.1.0",
+    "buildDate": "2026-05-15",
+    "sourceUrdf": "SuArmT/urdf/SuArmT.urdf"
+  },
+  "assetVersion": "suarmt-20260515063445",
+  "modelBasePath": "./models/raw/",
+  "originJoint": "J1",
+  "originMode": "j1_ground",
+  "linkage": {
+    "baseHeightMm": 88.5,
+    "activeLinkLengthMm": {
+      "J2": 135.045,
+      "J3": 145.031
+    },
+    "activeLinkLengthInch": {
+      "J2": 5.316747,
+      "J3": 5.709883
+    }
+  },
+  "parts": [
+    {
+      "name": "Base Fixed",
+      "target": "base",
+      "color": "#8a95a3",
+      "feaWeight": 0.04,
+      "files": [
+        "suarmt_global_base_link.STL"
+      ]
+    },
+    {
+      "name": "Base Rotary",
+      "target": "j1",
+      "color": "#3f78b7",
+      "feaWeight": 0.08,
+      "files": [
+        "suarmt_global_01.STL"
+      ]
+    },
+    {
+      "name": "Main Arm Linkage",
+      "target": "j2",
+      "color": "#f19131",
+      "feaWeight": 0.78,
+      "files": [
+        "suarmt_global_02.STL"
+      ]
+    },
+    {
+      "name": "Secondary Arm Linkage",
+      "target": "j3",
+      "color": "#54a24a",
+      "feaWeight": 0.9,
+      "files": [
+        "suarmt_global_03.STL"
+      ]
+    },
+    {
+      "name": "End Effector",
+      "target": "j4",
+      "color": "#df5454",
+      "feaWeight": 0.66,
+      "files": [
+        "suarmt_global_04.STL"
+      ]
+    },
+    {
+      "name": "J5",
+      "target": "j5",
+      "color": "#b07aa1",
+      "feaWeight": 0.3,
+      "files": [
+        "suarmt_global_05.STL"
+      ]
+    },
+    {
+      "name": "J6",
+      "target": "j6",
+      "color": "#76b7b2",
+      "feaWeight": 0.3,
+      "files": [
+        "suarmt_global_06.STL"
+      ]
+    },
+    {
+      "name": "J7",
+      "target": "j7",
+      "color": "#edc948",
+      "feaWeight": 0.3,
+      "files": [
+        "suarmt_global_07.STL"
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "name": "J1",
+      "target": "j1",
+      "parent": null,
+      "uiHidden": false,
+      "controlRole": "active",
+      "derivedType": "",
+      "derivedSourceTarget": "",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "",
+      "derivedSourceNames": [],
+      "derivedGain": 0,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0,
+        0,
+        1
+      ],
+      "pivot": [
+        -57.1064,
+        -180.8724,
+        -220.2428
+      ],
+      "minDeg": -74.48451336700703,
+      "maxDeg": 114.59155902616465,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J2",
+      "target": "j2",
+      "parent": "J1",
+      "uiHidden": false,
+      "controlRole": "active",
+      "derivedType": "",
+      "derivedSourceTarget": "",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "",
+      "derivedSourceNames": [],
+      "derivedGain": 0,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivot": [
+        -55.9535,
+        -188.3618,
+        -174.2428
+      ],
+      "minDeg": -28.64788975654116,
+      "maxDeg": 0,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J3",
+      "target": "j3",
+      "parent": "J2",
+      "uiHidden": false,
+      "controlRole": "active",
+      "derivedType": "",
+      "derivedSourceTarget": "",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "",
+      "derivedSourceNames": [],
+      "derivedGain": 0,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivot": [
+        -64.6223,
+        -179.8569,
+        -39.2464
+      ],
+      "minDeg": -17.188733853924695,
+      "maxDeg": 57.29577951308232,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J4",
+      "target": "j4",
+      "parent": "J3",
+      "uiHidden": true,
+      "controlRole": "derived",
+      "derivedType": "offset_minus_sum",
+      "derivedSourceTarget": "",
+      "derivedSourceTargets": [
+        "j2",
+        "j3"
+      ],
+      "derivedSourceName": "J4_OFFSET",
+      "derivedSourceNames": [
+        "J2",
+        "J3"
+      ],
+      "derivedGain": 0,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0.304694,
+        0.95245,
+        0
+      ],
+      "pivot": [
+        -176.396,
+        -143.2599,
+        -124.0577
+      ],
+      "minDeg": -179.9087476710785,
+      "maxDeg": 179.9087476710785,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J5",
+      "target": "j5",
+      "parent": "J4",
+      "uiHidden": false,
+      "controlRole": "active",
+      "derivedType": "",
+      "derivedSourceTarget": "",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "",
+      "derivedSourceNames": [],
+      "derivedGain": 0,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0.325757,
+        -0.104212,
+        -0.939693
+      ],
+      "pivot": [
+        -219.4114,
+        -129.499,
+        -155.8198
+      ],
+      "minDeg": -48.70141258611997,
+      "maxDeg": 28.64788975654116,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J6",
+      "target": "j6",
+      "parent": "J4",
+      "uiHidden": true,
+      "controlRole": "derived",
+      "derivedType": "follow",
+      "derivedSourceTarget": "j5",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "J5",
+      "derivedSourceNames": [],
+      "derivedGain": 1,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        -0.325757,
+        0.104212,
+        0.939693
+      ],
+      "pivot": [
+        -191.6212,
+        -153.0882,
+        -149.5293
+      ],
+      "minDeg": -48.70141258611997,
+      "maxDeg": 28.64788975654116,
+      "defaultDeg": 0
+    },
+    {
+      "name": "J7",
+      "target": "j7",
+      "parent": "J4",
+      "uiHidden": true,
+      "controlRole": "derived",
+      "derivedType": "follow",
+      "derivedSourceTarget": "j5",
+      "derivedSourceTargets": [],
+      "derivedSourceName": "J5",
+      "derivedSourceNames": [],
+      "derivedGain": 1,
+      "derivedOffsetDeg": 0,
+      "axis": [
+        0.325757,
+        -0.104212,
+        -0.939693
+      ],
+      "pivot": [
+        -182.9268,
+        -126.4717,
+        -149.9991
+      ],
+      "minDeg": -48.70141258611997,
+      "maxDeg": 28.64788975654116,
+      "defaultDeg": 0
+    }
+  ],
+  "lessons": [
+    {
+      "id": "L1",
+      "title": "零位与坐标系认知",
+      "angles": {
+        "J1": 0,
+        "J2": 0,
+        "J3": 0,
+        "J4": 0
+      },
+      "target": {
+        "x": 240,
+        "y": 0,
+        "z": 120
+      },
+      "load": 20,
+      "speech": "展示机械臂标准零位，并解释世界坐标系与关节坐标系的差异。"
+    },
+    {
+      "id": "L2",
+      "title": "关节解耦与联动",
+      "angles": {
+        "J1": 28,
+        "J2": 36,
+        "J3": -22,
+        "J4": 14
+      },
+      "target": {
+        "x": 210,
+        "y": 115,
+        "z": 178
+      },
+      "load": 38,
+      "speech": "观察 J1 旋转导致 J2 平面整体转向，验证串联坐标系传递关系。"
+    },
+    {
+      "id": "L3",
+      "title": "逆解驱动到目标点",
+      "angles": {
+        "J1": -18,
+        "J2": 48,
+        "J3": -44,
+        "J4": 22
+      },
+      "target": {
+        "x": 195,
+        "y": -62,
+        "z": 205
+      },
+      "load": 55,
+      "speech": "输入末端目标点，自动生成关节解，展示逆运动学过程。"
+    },
+    {
+      "id": "L4",
+      "title": "有限元极限工况演示",
+      "angles": {
+        "J1": 42,
+        "J2": 70,
+        "J3": -55,
+        "J4": 34
+      },
+      "target": {
+        "x": 160,
+        "y": 140,
+        "z": 225
+      },
+      "load": 86,
+      "speech": "施加高载荷并放大变形，突出应力集中与安全因子变化。"
+    }
+  ],
+  "urdfModel": {
+    "source": "SuArmT/urdf/SuArmT.urdf",
+    "csv": "SuArmT/urdf/SuArmT.csv",
+    "rootLink": "base_link",
+    "generatedAt": "2026-05-15T06:34:45.199Z"
+  },
+  "frameCalibration": {
+    "enabled": true,
+    "mode": "fixed_j1_front",
+    "upTarget": "j1",
+    "frontTarget": "j4",
+    "frontAxis": "x",
+    "yawOffsetDeg": 0,
+    "minFrontBaselineMm": 20,
+    "useDynamicFallback": false,
+    "note": "Lock J1-up and J4-front at boot to keep stable zero orientation."
+  }
+}

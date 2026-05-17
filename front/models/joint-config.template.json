@@ -1,0 +1,58 @@
+﻿{
+  "units": "servo_0_1000",
+  "note": "基于 Wrapper 方案的初始关节配置模板，请按实际机械结构调参",
+  "joints": [
+    {
+      "name": "J1",
+      "servo_id": 1,
+      "model_file": "j1_base_rotor.glb",
+      "axis": "y",
+      "home": 500,
+      "min": 0,
+      "max": 1000,
+      "group_position": [0, 0, 0],
+      "mesh_offset": [0, 0, 0],
+      "ratio": 1.0,
+      "invert": false
+    },
+    {
+      "name": "J2",
+      "servo_id": 2,
+      "model_file": "j2_link_bc.glb",
+      "axis": "z",
+      "home": 500,
+      "min": 0,
+      "max": 1000,
+      "group_position": [0, 0, 0],
+      "mesh_offset": [0, 0, 0],
+      "ratio": 1.0,
+      "invert": false
+    },
+    {
+      "name": "J3",
+      "servo_id": 3,
+      "model_file": "j3_link_cd.glb",
+      "axis": "z",
+      "home": 500,
+      "min": 0,
+      "max": 1000,
+      "group_position": [0, 0, 0],
+      "mesh_offset": [0, 0, 0],
+      "ratio": 1.0,
+      "invert": false
+    },
+    {
+      "name": "J4",
+      "servo_id": 4,
+      "model_file": "j4_end_effector.glb",
+      "axis": "z",
+      "home": 500,
+      "min": 0,
+      "max": 1000,
+      "group_position": [0, 0, 0],
+      "mesh_offset": [0, 0, 0],
+      "ratio": 1.0,
+      "invert": false
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { toFiniteNumber } from "./app_math.js";
 import { applyFeaLabCaseInputsRuntime } from "./runtime_kinematics_fea.js";
+import { nudgeJointForTourRuntime } from "./runtime_teaching_control.js";
 import { solveIk as solveIkCore } from "./teaching_kinematics.js";
 
 function delay(ms) {
@@ -16,6 +17,112 @@ function findFeaCase(config, caseId) {
   const list = Array.isArray(config?.feaLabCases) ? config.feaLabCases : [];
   const id = String(caseId || config?.labDefaults?.defaultFeaLabCase || "F3");
   return list.find((c) => c.id === id) || list[0] || null;
+}
+
+function findControlCase(config, caseId) {
+  const list = Array.isArray(config?.controlLabCases) ? config.controlLabCases : [];
+  const id = String(caseId || config?.labDefaults?.defaultControlLabCase || "C1");
+  return list.find((c) => c.id === id) || list[0] || null;
+}
+
+const CONTROL_PHASE_LABELS = {
+  zero: "零位",
+  axes: "旋转轴",
+  coupling: "联动",
+  nudge: "微调",
+  summary: "总结",
+};
+
+function resolveDemoKind(app, kind) {
+  if (kind === "control" || kind === "kin" || kind === "fea") {
+    return kind;
+  }
+  if (app.currentStage === "fea") return "fea";
+  if (app.currentStage === "kinematics") return "kin";
+  return "control";
+}
+
+function setDemoModeText(app, labCase) {
+  if (!app.dom.modeText) return;
+  const title = labCase?.title ? ` · ${labCase.title}` : "";
+  app.dom.modeText.textContent = `一键演示${title}`;
+}
+
+function updateControlDemoProgress(app, steps, activeIndex) {
+  if (!app.dom.controlDemoProgress || !Array.isArray(steps)) return;
+  const items = app.dom.controlDemoProgress.querySelectorAll(".control-demo-progress-item");
+  items.forEach((li, idx) => {
+    li.classList.toggle("is-active", idx === activeIndex);
+    li.classList.toggle("is-done", idx < activeIndex);
+  });
+}
+
+function buildControlDemoProgress(app, steps) {
+  if (!app.dom.controlDemoProgress || !Array.isArray(steps)) return;
+  app.dom.controlDemoProgress.innerHTML = "";
+  steps.forEach((step, idx) => {
+    const li = document.createElement("li");
+    li.className = "control-demo-progress-item";
+    if (idx === 0) li.classList.add("is-active");
+    const phase = String(step.phase || "");
+    li.textContent = CONTROL_PHASE_LABELS[phase] || `步骤 ${idx + 1}`;
+    app.dom.controlDemoProgress.appendChild(li);
+  });
+}
+
+function setControlNarration(app, text, phase, stepIndex, totalSteps, labCase) {
+  if (app.dom.controlDemoNarration) {
+    app.dom.controlDemoNarration.textContent = text || "";
+  }
+  if (app.dom.controlDemoTitle && labCase?.title) {
+    app.dom.controlDemoTitle.textContent = labCase.title;
+  }
+  if (app.dom.controlDemoStepText && Number.isFinite(stepIndex) && Number.isFinite(totalSteps)) {
+    const label = CONTROL_PHASE_LABELS[String(phase || "")] || `步骤 ${stepIndex + 1}`;
+    app.dom.controlDemoStepText.textContent = `步骤 ${stepIndex + 1}/${totalSteps} · ${label}`;
+  }
+  if (Number.isFinite(stepIndex)) {
+    updateControlDemoProgress(app, labCase?.demoScript?.steps, stepIndex);
+  }
+}
+
+async function runControlAction(app, step) {
+  const action = String(step?.action || "");
+  switch (action) {
+    case "setAngles": {
+      const angles = step.angles && typeof step.angles === "object" ? step.angles : {};
+      if (step.animate) {
+        app.animateToAngles(angles, 900);
+        await delay(950);
+      } else {
+        for (const [k, v] of Object.entries(angles)) {
+          app.setJointAngle(String(k), Number(v), { syncUi: true, applyNow: false, updateKinematics: false });
+        }
+        app.applyJointAngles();
+        app.updateEefReadout();
+      }
+      break;
+    }
+    case "nudgeJoint":
+      nudgeJointForTourRuntime(app, step.joint, step.deltaDeg);
+      await delay(400);
+      break;
+    case "showAxes":
+      if (app.dom.toggleAxes) {
+        app.dom.toggleAxes.checked = true;
+        app.dom.toggleAxes.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      break;
+    case "showGrid":
+      if (app.dom.toggleGrid) {
+        app.dom.toggleGrid.checked = true;
+        app.dom.toggleGrid.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      break;
+    case "finish":
+    default:
+      break;
+  }
 }
 
 export function setDemoPlayingRuntime(app, playing) {
@@ -215,11 +322,40 @@ function setFeaNarrationStep(app, text, phase) {
 }
 
 export async function runCaseDemoRuntime(app, caseId, kind = "auto") {
-  const stage = kind === "kin" || kind === "fea"
-    ? kind
-    : (app.currentStage === "fea" ? "fea" : app.currentStage === "kinematics" ? "kin" : null);
+  const resolvedKind = resolveDemoKind(app, kind);
 
-  if (stage === "kin" || (!stage && app.currentStage === "kinematics")) {
+  if (resolvedKind === "control") {
+    const labCase = findControlCase(app.config, caseId);
+    if (!labCase?.demoScript?.steps?.length) {
+      app.log("未找到控制示教演示案例", caseId);
+      return;
+    }
+    app.clearKinematicsDemoTimers();
+    app.labDemoAbort = { stopped: false };
+    setDemoPlayingRuntime(app, true);
+    setDemoModeText(app, labCase);
+    app.setTeachingStage("control");
+    const steps = labCase.demoScript.steps;
+    buildControlDemoProgress(app, steps);
+
+    const pauseMs = toFiniteNumber(labCase.demoScript.pauseBetweenStepsMs, 900);
+    try {
+      for (let i = 0; i < steps.length; i += 1) {
+        if (isDemoStopped(app)) break;
+        const step = steps[i];
+        setControlNarration(app, step.narration || "", step.phase, i, steps.length, labCase);
+        await runControlAction(app, step);
+        await delay(pauseMs);
+      }
+    } finally {
+      setDemoPlayingRuntime(app, false);
+      if (app.dom.modeText) app.dom.modeText.textContent = "手动控制";
+      app.log("控制示教演示结束", labCase.id);
+    }
+    return;
+  }
+
+  if (resolvedKind === "kin") {
     const labCase = findKinCase(app.config, caseId);
     if (!labCase?.demoScript?.steps?.length) {
       app.log("未找到正逆解演示案例", caseId);
@@ -228,7 +364,7 @@ export async function runCaseDemoRuntime(app, caseId, kind = "auto") {
     app.clearKinematicsDemoTimers();
     app.labDemoAbort = { stopped: false };
     setDemoPlayingRuntime(app, true);
-    if (app.dom.modeText) app.dom.modeText.textContent = "一键教学演示";
+    setDemoModeText(app, labCase);
     applyKinCaseSetup(app, labCase);
 
     const pauseMs = toFiniteNumber(labCase.demoScript.pauseBetweenStepsMs, 850);
@@ -247,7 +383,7 @@ export async function runCaseDemoRuntime(app, caseId, kind = "auto") {
     return;
   }
 
-  if (stage === "fea" || app.currentStage === "fea") {
+  if (resolvedKind === "fea") {
     const labCase = findFeaCase(app.config, caseId);
     if (!labCase?.demoScript?.steps?.length) {
       app.log("未找到有限元演示案例", caseId);
@@ -255,7 +391,7 @@ export async function runCaseDemoRuntime(app, caseId, kind = "auto") {
     }
     app.labDemoAbort = { stopped: false };
     setDemoPlayingRuntime(app, true);
-    if (app.dom.modeText) app.dom.modeText.textContent = "一键教学演示";
+    setDemoModeText(app, labCase);
     app.setTeachingStage("fea");
     app.fea.enabled = true;
     app.fea.running = true;
@@ -282,4 +418,21 @@ export function runKinematicsCaseDemoRuntime(app, caseId) {
 
 export function runFeaCaseDemoRuntime(app, caseId) {
   return runCaseDemoRuntime(app, caseId, "fea");
+}
+
+export function runControlCaseDemoRuntime(app, caseId) {
+  return runCaseDemoRuntime(app, caseId, "control");
+}
+
+export function buildControlDemoUiRuntime(app) {
+  const labCase = findControlCase(app.config, app.config?.labDefaults?.defaultControlLabCase);
+  const steps = labCase?.demoScript?.steps;
+  if (!steps?.length) return;
+  buildControlDemoProgress(app, steps);
+  if (app.dom.controlDemoTitle && labCase.title) {
+    app.dom.controlDemoTitle.textContent = labCase.title;
+  }
+  if (app.dom.controlDemoStepText) {
+    app.dom.controlDemoStepText.textContent = `步骤 1/${steps.length} · 准备`;
+  }
 }

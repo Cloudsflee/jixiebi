@@ -602,6 +602,61 @@
   gap: 7px;
 }
 
+.control-demo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.control-demo-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e8ecf4);
+}
+
+.control-demo-step {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted, #9aa8c4);
+}
+
+.control-demo-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.control-demo-progress-item {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted, #9aa8c4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.control-demo-progress-item.is-active {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #7dd3fc;
+}
+
+.control-demo-progress-item.is-done {
+  opacity: 0.55;
+}
+
+.control-demo-narration {
+  margin: 0;
+  line-height: 1.55;
+  flex: 1;
+  min-height: 4.5em;
+}
+
 .lesson-item {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1115,10 +1170,30 @@
   flex-shrink: 0;
 }
 
-body.is-demo-playing .lab-step-nav {
+body.is-demo-playing .lab-step-nav-float {
   pointer-events: auto;
-  position: relative;
-  z-index: 5;
+  z-index: 8501;
+}
+
+/* 02/03：步骤栏固定底部，避免被大视口挤到屏幕外 */
+body.is-lab-stage-active .lab-step-nav-float {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8500;
+  width: min(92vw, 920px);
+  margin: 0;
+  box-shadow: 0 10px 36px rgba(12, 40, 72, 0.28);
+}
+
+body.is-lab-stage-active .stage-panel-lab.is-stage-active {
+  scroll-margin-top: 12px;
+}
+
+body.is-lab-stage-active .kin-lab,
+body.is-lab-stage-active .fea-lab {
+  padding-bottom: 96px;
 }
 
 .fea-model-tag {
@@ -1182,6 +1257,66 @@ body.is-demo-playing .lab-step-nav {
 
 .fea-direction-segment {
   margin-bottom: 8px;
+}
+
+.fea-controls-scroll {
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.fea-input-group {
+  margin-bottom: 10px;
+  border: 1px solid #d2e3f5;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.65);
+  padding: 8px 10px 10px;
+}
+
+.fea-input-group summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a4f82;
+  margin-bottom: 6px;
+  list-style-position: outside;
+}
+
+.fea-number-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #c5d8ee;
+  font-size: 14px;
+  color: #1a3550;
+  margin-bottom: 6px;
+}
+
+.fea-inline-val {
+  font-weight: 700;
+  color: #2a5f90;
+  margin-left: 6px;
+}
+
+.fea-input-summary {
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: 10px;
+  background: #eef6ff;
+  border: 1px dashed #b8d4f0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #355a7a;
+}
+
+.fea-col.fea-controls .fea-segment {
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.fea-col.fea-controls .fea-seg-btn {
+  font-size: 11px;
+  padding: 5px 8px;
 }
 
 .fea-col.fea-controls .slider-label {
@@ -1779,6 +1914,14 @@ body.is-tour-welcome {
   overflow: hidden;
 }
 
+body.is-tour-interactive .tour-overlay {
+  pointer-events: none;
+}
+
+body.is-tour-interactive .tour-card {
+  pointer-events: auto;
+}
+
 body.is-tour-welcome .tour-welcome {
   pointer-events: auto;
 }
@@ -1868,10 +2011,12 @@ body.is-tour-welcome .tour-welcome {
   z-index: 9002;
   pointer-events: auto;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   width: min(440px, calc(100vw - 32px));
   min-height: 132px;
-  max-height: min(40vh, 300px);
-  overflow: auto;
+  max-height: min(46vh, 340px);
+  overflow: hidden;
   padding: 18px 18px 14px;
   border-radius: 14px;
   border: 1px solid rgba(110, 165, 230, 0.4);
@@ -1929,10 +2074,13 @@ body.is-tour-welcome .tour-welcome {
 }
 
 .tour-body {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   font-size: 13px;
   line-height: 1.6;
   color: #b9cce8;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .tour-card-actions {
@@ -1941,9 +2089,11 @@ body.is-tour-welcome .tour-welcome {
   gap: 8px;
   justify-content: flex-end;
   align-items: center;
-  margin-top: 4px;
+  flex-shrink: 0;
+  margin-top: auto;
   padding-top: 10px;
   border-top: 1px solid rgba(120, 160, 210, 0.22);
+  background: linear-gradient(160deg, rgba(18, 34, 56, 0.98) 0%, rgba(12, 22, 38, 0.98) 100%);
 }
 
 .tour-card-actions .btn[data-tour-skip] {

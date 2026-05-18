@@ -121,7 +121,12 @@ export function evaluatePseudoFea(modelInput = {}, input = {}, ctx = {}) {
   const material = ctx.material || modelInput._feaMaterial || {};
   const energyWeights = ctx.energyWeights || modelInput._energyWeights || {};
   const options = {
-    loadDirectionFactor: ctx.loadDirectionFactor ?? modelInput._loadDirectionFactor ?? 1
+    loadDirectionFactor: ctx.loadDirectionFactor ?? modelInput._loadDirectionFactor ?? 1,
+    impactFactor: ctx.impactFactor ?? 1,
+    momentLeverFactor: ctx.momentLeverFactor ?? 1,
+    constraintFactor: ctx.constraintFactor ?? 1,
+    sectionScales: ctx.sectionScales ?? {},
+    dynamicGain: ctx.dynamicGain
   };
   if (ctx.legacy !== true) {
     return evaluateStructuralFea(modelInput, input, material, energyWeights, options);

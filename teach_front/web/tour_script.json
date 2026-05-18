@@ -32,35 +32,24 @@
       "actionDelay": 200
     },
     {
-      "id": "control-lessons",
+      "id": "control-demo-panel",
       "phase": "control",
       "stage": "control",
-      "target": "#lessonList",
+      "target": "#controlDemoPanel",
       "placement": "top",
-      "title": "教学课时列表",
-      "body": "L1–L4 对应从零位认知到极限工况的递进课时。将载入 L1「零位与坐标系认知」。",
-      "action": "applyLesson0",
+      "title": "示教演示旁白",
+      "body": "此处显示一键演示的步骤进度与解说文案。将先回到零位姿态便于对照。",
+      "action": "applyControlZero",
       "actionDelay": 300
     },
     {
-      "id": "control-speech",
+      "id": "control-one-click",
       "phase": "control",
       "stage": "control",
-      "target": "#lessonSpeech",
-      "placement": "top",
-      "title": "课时讲解文案",
-      "body": "此处显示当前课时的教学解说，可与 3D 姿态对照理解。"
-    },
-    {
-      "id": "control-next",
-      "phase": "control",
-      "stage": "control",
-      "target": "#btnNextLesson",
-      "placement": "top",
-      "title": "切换下一课时",
-      "body": "使用「下一步」可顺序浏览课时。将自动载入 L2「关节解耦与联动」。",
-      "action": "applyLesson1",
-      "actionDelay": 300
+      "target": "#btnDemo",
+      "placement": "right",
+      "title": "一键教学演示",
+      "body": "侧栏「一键教学演示」可自动播放关节示教脚本（零位→旋转轴→联动→微调）；演示中可再次点击停止。"
     },
     {
       "id": "control-axes",
@@ -149,18 +138,60 @@
       "target": "#btnStageFea",
       "placement": "right",
       "title": "进入有限元演示",
-      "body": "第三阶段在伪有限元模型上观察应力、位移与风险指标，联系云图颜色变化。"
+      "body": "第三阶段在简化结构力学模型上，把「工况输入 → 云图 → 指标 → 趋势」串成完整观察链路。"
     },
     {
-      "id": "fea-load",
+      "id": "fea-pose",
       "phase": "fea",
       "stage": "fea",
-      "target": "#feaLoad",
+      "target": "#feaPoseSource",
       "placement": "top",
-      "title": "载荷与变形设置",
-      "body": "将载入 L4 极限工况姿态与高载荷，作为有限元演示输入。",
-      "action": "feaL4",
-      "actionDelay": 600
+      "title": "姿态来源",
+      "body": "可选择课时姿态或当前孪生姿态；机械臂在 01/02 中的关节角会同步到本阶段。",
+      "action": "feaTourRatedSetup",
+      "actionDelay": 400
+    },
+    {
+      "id": "fea-scenario",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaLoadScenarioRow",
+      "placement": "top",
+      "title": "载荷工况预设",
+      "body": "轻载 / 额定 / 极限对应不同任务阶段，会联动载荷强度与末端质量。",
+      "action": "feaTourLightScenario",
+      "actionDelay": 350
+    },
+    {
+      "id": "fea-direction",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaLoadDirectionRow",
+      "placement": "top",
+      "title": "载荷方向",
+      "body": "重力主导、侧向、组合受力会改变弯矩系数；将演示侧向载荷的影响。",
+      "action": "feaTourShowDirectionSide",
+      "actionDelay": 400
+    },
+    {
+      "id": "fea-structure",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaMaterialPreset",
+      "placement": "top",
+      "title": "材料与截面",
+      "body": "材料屈服强度与臂段截面刚度进入简化模型；截面变细会放大应力，材料更软则安全系数下降。"
+    },
+    {
+      "id": "fea-exaggeration",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaExaggeration",
+      "placement": "top",
+      "title": "变形放大（仅云图）",
+      "body": "该项只放大云图上的可见变形，不改变力学计算结果；将自动调高以作对比。",
+      "action": "feaTourExaggerationDemo",
+      "actionDelay": 350
     },
     {
       "id": "fea-stepper",
@@ -180,9 +211,18 @@
       "target": "#btnRunFea",
       "placement": "top",
       "title": "运行有限元演示",
-      "body": "运行后将更新云图着色、变形动画及右侧核心指标。",
+      "body": "运行后云图着色与形变动画启动，右侧指标实时更新，并为趋势图积累采样点。",
       "action": "runFea",
       "actionDelay": 800
+    },
+    {
+      "id": "fea-viewport",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#viewport",
+      "placement": "left",
+      "title": "三维云图",
+      "body": "颜色由应力水平映射：冷色偏低应力，暖色/红色为热点；与右侧最大应力指标一致。"
     },
     {
       "id": "fea-metrics",
@@ -191,16 +231,69 @@
       "target": ".fea-metrics",
       "placement": "left",
       "title": "核心风险指标",
-      "body": "关注最大应力、位移、安全系数与风险等级，理解指标与云图颜色的对应关系。"
+      "body": "最大应力、位移、安全系数与风险等级与云图同步；安全系数低于 1.4 时需关注结构余量。"
     },
     {
-      "id": "fea-chart",
+      "id": "fea-hotspot",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#btnFeaHotspot",
+      "placement": "top",
+      "title": "热点高亮",
+      "body": "开启热点可在 J2/J3 等承载杆段突出高应力区，便于对照能耗占比讲解。"
+    },
+    {
+      "id": "fea-chart-intro",
       "phase": "fea",
       "stage": "fea",
       "target": "#feaChart",
       "placement": "top",
-      "title": "应力 / 位移趋势",
-      "body": "趋势图记录仿真过程中的应力与位移变化，便于课堂讲解动态响应。"
+      "title": "应力 / 位移趋势图",
+      "body": "曲线记录仿真过程中的应力与位移采样；虚线为预警与危险阈值。",
+      "action": "feaTourSeedChart",
+      "actionDelay": 500
+    },
+    {
+      "id": "fea-chart-compare",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaChart",
+      "placement": "top",
+      "title": "载荷三档对比",
+      "body": "将自动切换轻载 25% → 额定 55% → 极限 86%，观察趋势点上移与云图变热的原因。",
+      "action": "feaTourLoadContrast",
+      "actionDelay": 400
+    },
+    {
+      "id": "fea-chart-try",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaLoad",
+      "placement": "top",
+      "title": "手动调节载荷",
+      "body": "请拖动「载荷强度」滑条：曲线、指标与云图应同步变化；下方灰字会说明变化原因。",
+      "allowInteract": true,
+      "interactTargets": ["#feaLoad"]
+    },
+    {
+      "id": "fea-advanced",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaAdvancedPanel",
+      "placement": "top",
+      "title": "区段贡献（高级）",
+      "body": "展开后可查看 J2/J3/J4 应力与位移占比，理解大臂为何承担主要弯矩。",
+      "action": "feaTourExpandAdvanced",
+      "actionDelay": 200
+    },
+    {
+      "id": "fea-explain",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaExplainText",
+      "placement": "top",
+      "title": "有限元小结",
+      "body": "工况输入决定载荷与刚度 → 云图与指标反映应力水平 → 趋势图展示随载荷变化的整体响应。"
     },
     {
       "id": "complete",

@@ -54,12 +54,14 @@ function sectionModulus(section, material) {
   return area * scale;
 }
 
-function calcBeamNode(model, section, material, payloadN, angleDeg, loadWeight = 1) {
+function calcBeamNode(model, section, material, payloadN, angleDeg, loadWeight = 1, options = {}) {
   const absAngle = Math.abs(toFinite(angleDeg, 0));
   const angleFactor = 1 + 0.65 * Math.sin((absAngle * Math.PI) / 180) ** 2;
-  const lever = Math.max(1, toFinite(section.leverMm, 100));
+  const leverScale = Math.max(0.05, toFinite(options.momentLeverFactor, 1));
+  const lever = Math.max(1, toFinite(section.leverMm, 100)) * leverScale;
   const w = Math.max(0.05, toFinite(loadWeight, 1));
-  const moment = payloadN * lever * angleFactor * w * (1 + model.dynamicGain * 0.15);
+  const constraintFactor = Math.max(0.05, toFinite(options.constraintFactor, 1));
+  const moment = payloadN * lever * angleFactor * w * constraintFactor * (1 + model.dynamicGain * 0.15);
   const wSec = sectionModulus(section, material);
   const stressMpa = moment / wSec;
   const yieldMpa = Math.max(1, toFinite(material?.yieldStressMpa, model.yieldStressMpa));
@@ -117,12 +119,37 @@ function buildDiagnostics(byTarget, summary, energyWeights = {}) {
   };
 }
 
+function scaleSection(section, scale = 1) {
+  const s = Math.max(0.5, toFinite(scale, 1));
+  return {
+    ...section,
+    strengthArea: Math.max(1, toFinite(section.strengthArea, 70) * s)
+  };
+}
+
 export function evaluateStructuralFea(modelInput = {}, input = {}, materialInput = {}, energyWeights = {}, options = {}) {
-  const model = normalizePseudoFeaModel(modelInput);
+  const baseModel = normalizePseudoFeaModel(modelInput);
   const material = materialInput && typeof materialInput === "object" ? materialInput : {};
   const dirFactor = Math.max(0.05, toFinite(options.loadDirectionFactor, 1));
-  const payloadNewton = Math.max(0, toFinite(input.payloadNewton, 0)) * model.payloadScale * dirFactor;
+  const impactFactor = Math.max(0.05, toFinite(options.impactFactor, 1));
+  const payloadNewton = Math.max(0, toFinite(input.payloadNewton, 0)) * baseModel.payloadScale * dirFactor * impactFactor;
   const joints = input.jointDeg && typeof input.jointDeg === "object" ? input.jointDeg : {};
+  const sectionScales = options.sectionScales && typeof options.sectionScales === "object"
+    ? options.sectionScales
+    : {};
+  const beamOpts = {
+    momentLeverFactor: toFinite(options.momentLeverFactor, 1),
+    constraintFactor: toFinite(options.constraintFactor, 1)
+  };
+  const model = {
+    ...baseModel,
+    dynamicGain: toFinite(options.dynamicGain, baseModel.dynamicGain),
+    sections: {
+      j2: scaleSection(baseModel.sections.j2, sectionScales.j2 ?? 1),
+      j3: scaleSection(baseModel.sections.j3, sectionScales.j3 ?? 1),
+      j4: scaleSection(baseModel.sections.j4, sectionScales.j4 ?? 1)
+    }
+  };
 
   const j1 = toFinite(joints.j1, 0);
   const j2 = toFinite(joints.j2, 0);
@@ -131,9 +158,9 @@ export function evaluateStructuralFea(modelInput = {}, input = {}, materialInput
   const w = energyWeights && typeof energyWeights === "object" ? energyWeights : {};
 
   const byTarget = {
-    j2: calcBeamNode(model, model.sections.j2, material, payloadNewton, j2, w.j2 ?? 0.33),
-    j3: calcBeamNode(model, model.sections.j3, material, payloadNewton, j2 + j3, w.j3 ?? 0.27),
-    j4: calcBeamNode(model, model.sections.j4, material, payloadNewton, j2 + j3 + j4, w.j4 ?? 0.17)
+    j2: calcBeamNode(model, model.sections.j2, material, payloadNewton, j2, w.j2 ?? 0.33, beamOpts),
+    j3: calcBeamNode(model, model.sections.j3, material, payloadNewton, j2 + j3, w.j3 ?? 0.27, beamOpts),
+    j4: calcBeamNode(model, model.sections.j4, material, payloadNewton, j2 + j3 + j4, w.j4 ?? 0.17, beamOpts)
   };
 
   const maxStressMpa = Math.max(byTarget.j2.stressMpa, byTarget.j3.stressMpa, byTarget.j4.stressMpa);

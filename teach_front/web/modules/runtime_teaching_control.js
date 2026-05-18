@@ -86,8 +86,10 @@ export function applyLessonRuntime(app, index, animate, deps) {
   app.currentLessonIndex = idx;
   const lesson = lessons[idx];
 
-  for (let i = 0; i < app.lessonItems.length; i += 1) {
-    app.lessonItems[i].classList.toggle("active", i === idx);
+  if (Array.isArray(app.lessonItems) && app.lessonItems.length) {
+    for (let i = 0; i < app.lessonItems.length; i += 1) {
+      app.lessonItems[i].classList.toggle("active", i === idx);
+    }
   }
 
   if (app.dom.lessonSpeech) {
@@ -115,8 +117,8 @@ export function applyLessonRuntime(app, index, animate, deps) {
     app.updateEefReadout();
   }
 
-  if (app.dom.modeText) {
-    app.dom.modeText.textContent = `教学流程 - ${lesson.title || "示教"}`;
+  if (app.dom.modeText && app.currentStage === "control" && !app.isDemoPlaying) {
+    app.dom.modeText.textContent = "手动控制";
   }
   app.kinLastSolve.reachable = null;
   app.kinLastSolve.clipped = null;
@@ -207,27 +209,10 @@ export function runOneClickDemoRuntime(app) {
     return;
   }
 
-  app.clearKinematicsDemoTimers();
-  app.setTeachingStage("control");
-  if (app.dom.modeText) {
-    app.dom.modeText.textContent = "一键教学演示";
+  const caseId = app.config?.labDefaults?.defaultControlLabCase || "C1";
+  if (typeof app.runCaseDemo === "function") {
+    return app.runCaseDemo(caseId, "control");
   }
-
-  app.fea.enabled = true;
-  app.fea.running = true;
-  if (app.dom.feaLoad) app.dom.feaLoad.value = "82";
-  if (app.dom.feaExaggeration) app.dom.feaExaggeration.value = "165";
-  app.fea.load = 82;
-  app.fea.exaggeration = 165;
-  app.refreshFeaTexts();
-
-  app.applyLesson(1);
-  app.kinDemoTimerIds.push(setTimeout(() => app.applyLesson(2), 1600));
-  app.kinDemoTimerIds.push(setTimeout(() => app.applyLesson(3), 3200));
-  app.kinDemoTimerIds.push(setTimeout(() => {
-    app.solveIkFromUi();
-    app.log("One-click demo sequence complete");
-  }, 4700));
 }
 
 export function setTeachingStageRuntime(app, stage) {
@@ -268,6 +253,22 @@ export function setTeachingStageRuntime(app, stage) {
     if (app.fea?.poseSource === "twin") {
       app.fea.enabled = true;
       app.updateFeaVisual(performance.now());
+    }
+  }
+
+  document.body.classList.toggle("is-lab-stage-active", normalized === "kinematics" || normalized === "fea");
+  document.body.classList.toggle("is-lab-stage-kin", normalized === "kinematics");
+  document.body.classList.toggle("is-lab-stage-fea", normalized === "fea");
+
+  if (Array.isArray(app.dom.stagePanels)) {
+    const activePanel = app.dom.stagePanels.find((panel) => {
+      const key = String(panel?.dataset?.stagePanel || "").trim().toLowerCase();
+      return key === normalized;
+    });
+    try {
+      activePanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    } catch (_err) {
+      // ignore
     }
   }
 }

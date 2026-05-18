@@ -10,7 +10,7 @@
     />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles-base.css?v=20260518-style-split1" />
-    <link rel="stylesheet" href="./styles-teaching.css?v=20260519-tour-restore" />
+    <link rel="stylesheet" href="./styles-teaching.css?v=20260519-fea-tour1" />
   </head>
   <body class="teach-page">
     <script>
@@ -146,15 +146,14 @@
                 </div>
               </section>
 
-              <section class="control-col">
-                <h3 class="module-subtitle">教学流程（视频模式）</h3>
-                <div id="lessonList" class="lesson-list"></div>
-                <div class="inline-actions">
-                  <button id="btnPrevLesson" class="btn">上一步</button>
-                  <button id="btnNextLesson" class="btn">下一步</button>
-                  <button id="btnAutoLesson" class="btn btn-strong">自动播放</button>
-                </div>
-                <p id="lessonSpeech" class="speech"></p>
+              <section id="controlDemoPanel" class="control-col control-demo-col">
+                <h3 class="module-subtitle">示教演示</h3>
+                <p id="controlDemoTitle" class="control-demo-title">关节示教综合演示</p>
+                <p id="controlDemoStepText" class="control-demo-step">步骤 1/5 · 准备</p>
+                <ul id="controlDemoProgress" class="control-demo-progress" aria-label="演示步骤进度"></ul>
+                <p id="controlDemoNarration" class="speech control-demo-narration">
+                  点击侧栏「一键教学演示」可自动播放关节示教脚本；也可手动拖动左侧滑条体验。
+                </p>
               </section>
 
               <section class="control-col">
@@ -226,7 +225,7 @@
               </div>
             </header>
 
-            <nav class="lab-step-nav kin-step-nav" aria-label="正逆解教学步骤导航">
+            <nav class="lab-step-nav lab-step-nav-float kin-step-nav" aria-label="正逆解教学步骤导航">
               <span class="lab-step-nav-label">教学步骤</span>
               <div class="lab-step-nav-actions">
                 <button id="btnStepPrev" class="btn" type="button">上一步</button>
@@ -336,7 +335,7 @@
               </div>
             </header>
 
-            <nav class="lab-step-nav fea-step-nav" aria-label="有限元教学步骤导航">
+            <nav class="lab-step-nav lab-step-nav-float fea-step-nav" aria-label="有限元教学步骤导航">
               <div class="fea-stepper-main">
                 <p id="feaStepText" class="fea-step-chip">步骤 1/4 设置</p>
                 <ol id="feaStepper" class="fea-stepper" aria-label="有限元教学步骤">
@@ -382,26 +381,57 @@
             <div class="fea-main-grid">
               <section class="fea-col fea-controls">
                 <h3 class="module-subtitle">工况输入 <small class="fea-model-tag">简化结构力学模型</small></h3>
-                <label class="fea-field-label" for="feaPoseSource">姿态来源</label>
-                <select id="feaPoseSource" class="fea-select"></select>
-                <p id="feaPoseSummary" class="fea-pose-summary">当前姿态：-</p>
-                <p class="fea-field-label">载荷工况 <span class="fea-field-hint">（对应任务阶段，可再细调滑条）</span></p>
-                <div class="fea-preset-row" id="feaLoadScenarioRow" role="group" aria-label="载荷工况预设"></div>
-                <label class="slider-label">
-                  载荷强度：
-                  <span id="feaLoadText">50%</span>
-                  <input id="feaLoad" type="range" min="0" max="100" value="50" />
-                </label>
-                <p class="fea-field-label">载荷方向</p>
-                <div class="fea-segment fea-direction-segment" id="feaLoadDirectionRow" role="group" aria-label="载荷方向"></div>
-                <label class="fea-field-label" for="feaMaterialPreset">材料预设</label>
-                <select id="feaMaterialPreset" class="fea-select"></select>
-                <label class="slider-label">
-                  变形放大 <span class="fea-field-hint">（仅云图可见度）</span>：
-                  <span id="feaExaggerationText">120%</span>
-                  <input id="feaExaggeration" type="range" min="20" max="200" value="120" />
-                </label>
-                <p class="fea-legend-live">当前热点等级：<strong id="feaLegendState">-</strong></p>
+                <div class="fea-controls-scroll">
+                  <details class="fea-input-group" open>
+                    <summary>姿态与几何</summary>
+                    <label class="fea-field-label" for="feaPoseSource">姿态来源</label>
+                    <select id="feaPoseSource" class="fea-select"></select>
+                    <p id="feaPoseSummary" class="fea-pose-summary">当前姿态：-</p>
+                  </details>
+                  <details class="fea-input-group" open>
+                    <summary>载荷与受力</summary>
+                    <p class="fea-field-label">任务阶段 <span class="fea-field-hint">（仿真标定）</span></p>
+                    <div class="fea-preset-row" id="feaLoadScenarioRow" role="group" aria-label="载荷工况预设"></div>
+                    <label class="slider-label">
+                      载荷强度：
+                      <span id="feaLoadText">50%</span>
+                      <input id="feaLoad" type="range" min="0" max="100" value="50" />
+                    </label>
+                    <label class="fea-field-label" for="feaPayloadMass">
+                      末端载荷质量 <span id="feaPayloadMassText" class="fea-inline-val">0.5 kg</span>
+                    </label>
+                    <input id="feaPayloadMass" class="fea-number-input" type="number" min="0.1" max="2" step="0.1" value="0.5" />
+                    <p class="fea-field-label">载荷方向</p>
+                    <div class="fea-segment fea-direction-segment" id="feaLoadDirectionRow" role="group" aria-label="载荷方向"></div>
+                    <p class="fea-field-label">载荷作用点</p>
+                    <div class="fea-segment" id="feaLoadPointRow" role="group" aria-label="载荷作用点"></div>
+                    <p class="fea-field-label">载荷类型</p>
+                    <div class="fea-segment" id="feaLoadTypeRow" role="group" aria-label="载荷类型"></div>
+                  </details>
+                  <details class="fea-input-group" open>
+                    <summary>结构与材料</summary>
+                    <label class="fea-field-label" for="feaMaterialPreset">材料牌号</label>
+                    <select id="feaMaterialPreset" class="fea-select"></select>
+                    <p class="fea-field-label">臂段截面</p>
+                    <div class="fea-segment" id="feaSectionPresetRow" role="group" aria-label="臂段截面"></div>
+                    <p class="fea-field-label">边界约束</p>
+                    <div class="fea-segment" id="feaConstraintModeRow" role="group" aria-label="边界约束"></div>
+                    <p class="fea-field-label">工作温度</p>
+                    <div class="fea-segment" id="feaTemperatureRow" role="group" aria-label="工作温度"></div>
+                  </details>
+                  <details class="fea-input-group" open>
+                    <summary>动力学与显示</summary>
+                    <p class="fea-field-label">运动激烈度</p>
+                    <div class="fea-segment" id="feaDynamicModeRow" role="group" aria-label="运动激烈度"></div>
+                    <label class="slider-label">
+                      变形放大 <span class="fea-field-hint">（仅云图）</span>：
+                      <span id="feaExaggerationText">120%</span>
+                      <input id="feaExaggeration" type="range" min="20" max="200" value="120" />
+                    </label>
+                    <p class="fea-legend-live">热点等级：<strong id="feaLegendState">-</strong></p>
+                  </details>
+                  <p id="feaInputSummary" class="fea-input-summary">等效载荷：-</p>
+                </div>
               </section>
 
               <section class="fea-col fea-metrics">
@@ -468,7 +498,7 @@
       </div>
     </div>
     <div id="tourRoot" class="tour-root" hidden aria-hidden="true"></div>
-    <script type="module" src="./app.js?v=20260519-fea-inputs"></script>
+    <script type="module" src="./app.js?v=20260519-stage-demo"></script>
   </body>
 </html>
 

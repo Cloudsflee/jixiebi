@@ -362,9 +362,52 @@
     }
   ],
   "labDefaults": {
+    "defaultControlLabCase": "C1",
     "defaultKinLabCase": "K3",
     "defaultFeaLabCase": "F3"
   },
+  "controlLabCases": [
+    {
+      "id": "C1",
+      "title": "关节示教综合演示",
+      "demoScript": {
+        "pauseBetweenStepsMs": 900,
+        "steps": [
+          {
+            "phase": "zero",
+            "narration": "零位与坐标系：观察 HUD 末端与基座关系。",
+            "action": "setAngles",
+            "angles": { "J1": 0, "J2": 0, "J3": 0, "J4": 0 },
+            "animate": true
+          },
+          {
+            "phase": "axes",
+            "narration": "开启旋转轴可视化，建立关节轴空间直觉。",
+            "action": "showAxes"
+          },
+          {
+            "phase": "coupling",
+            "narration": "J1 转向带动整链平面变化，体会串联传递。",
+            "action": "setAngles",
+            "angles": { "J1": 28, "J2": 36, "J3": -22, "J4": 14 },
+            "animate": true
+          },
+          {
+            "phase": "nudge",
+            "narration": "微调 J2，观察末端位移与孪生同步。",
+            "action": "nudgeJoint",
+            "joint": "J2",
+            "deltaDeg": 10
+          },
+          {
+            "phase": "summary",
+            "narration": "演示结束，可继续手动拖动关节或进入 02 正逆解。",
+            "action": "finish"
+          }
+        ]
+      }
+    }
+  ],
   "gateway": {
     "moveTimeMs": 900,
     "commandScaleDeg": 10,
@@ -390,9 +433,9 @@
   },
   "feaInputPresets": {
     "loadScenarios": [
-      { "id": "light", "label": "轻载", "loadPercent": 20, "hint": "待机/准备阶段（仿真标定）" },
-      { "id": "rated", "label": "额定", "loadPercent": 55, "hint": "负载搬运阶段（仿真标定）" },
-      { "id": "limit", "label": "极限", "loadPercent": 86, "hint": "高负载/大姿态（仿真标定）" }
+      { "id": "light", "label": "轻载", "loadPercent": 20, "payloadMassKg": 0.3, "hint": "待机/准备阶段（仿真标定）" },
+      { "id": "rated", "label": "额定", "loadPercent": 55, "payloadMassKg": 0.5, "hint": "负载搬运阶段（仿真标定）" },
+      { "id": "limit", "label": "极限", "loadPercent": 86, "payloadMassKg": 1.2, "hint": "高负载/大姿态（仿真标定）" }
     ],
     "loadDirections": [
       { "id": "gravity", "label": "重力主导", "momentFactor": 1.0 },
@@ -409,6 +452,41 @@
       { "id": "lesson:2", "label": "L3 目标", "lessonIndex": 2 },
       { "id": "lesson:3", "label": "L4 极限", "lessonIndex": 3 },
       { "id": "twin", "label": "当前孪生姿态", "lessonIndex": null }
+    ],
+    "payloadMass": {
+      "minKg": 0.1,
+      "maxKg": 2.0,
+      "stepKg": 0.1,
+      "defaultKg": 0.5,
+      "ratedKg": 0.5,
+      "limitKg": 1.2,
+      "baseNewtonAtRated": 12
+    },
+    "loadPoints": [
+      { "id": "tip", "label": "末端", "momentLeverFactor": 1.0, "hint": "抓持点在最前端，弯矩臂最大" },
+      { "id": "mid", "label": "中段", "momentLeverFactor": 0.9, "hint": "载荷靠近中段，弯矩略降" },
+      { "id": "distributed", "label": "分布", "momentLeverFactor": 0.82, "hint": "近似均布载荷，峰值弯矩更低" }
+    ],
+    "loadTypes": [
+      { "id": "steady", "label": "稳态", "impactFactor": 1.0 },
+      { "id": "impact", "label": "冲击", "impactFactor": 1.2, "hint": "启停/抓取瞬态，等效放大 20%" }
+    ],
+    "sectionPresets": [
+      { "id": "standard", "label": "标准截面", "scales": { "j2": 1.0, "j3": 1.0, "j4": 1.0 } },
+      { "id": "reinforced", "label": "加强臂", "scales": { "j2": 1.15, "j3": 1.1, "j4": 1.05 } },
+      { "id": "slim", "label": "轻量化", "scales": { "j2": 0.88, "j3": 0.9, "j4": 0.92 } }
+    ],
+    "constraintModes": [
+      { "id": "fixed", "label": "底座固定", "constraintFactor": 1.0 },
+      { "id": "cantilever", "label": "悬臂主导", "constraintFactor": 1.1, "hint": "强调根部弯矩传递" }
+    ],
+    "dynamicModes": [
+      { "id": "static", "label": "静态", "dynamicGain": 0.25 },
+      { "id": "agile", "label": "快启停", "dynamicGain": 0.55, "hint": "高加减速任务，动力项放大" }
+    ],
+    "temperaturePresets": [
+      { "id": "ambient", "label": "常温 25°C", "yieldFactor": 1.0 },
+      { "id": "elevated", "label": "温升 55°C", "yieldFactor": 0.9, "hint": "材料屈服强度折减（教学近似）" }
     ]
   },
   "kinLabCases": [
@@ -421,7 +499,7 @@
       "demoScript": {
         "pauseBetweenStepsMs": 850,
         "steps": [
-          { "phase": "input", "narration": "载入 L2 目标点，准备逆解。", "action": "loadTarget" },
+          { "phase": "input", "narration": "载入工作空间 IK 目标点，准备逆解。", "action": "loadTarget" },
           { "phase": "reachable", "narration": "检查目标是否在工作空间内。", "action": "checkReachable" },
           { "phase": "solve", "narration": "执行逆解并驱动机械臂。", "action": "solveIk" },
           { "phase": "validate", "narration": "反向验证末端误差。", "action": "validateFk" }
@@ -437,7 +515,7 @@
       "demoScript": {
         "pauseBetweenStepsMs": 950,
         "steps": [
-          { "phase": "input", "narration": "载入 L3 目标点。", "action": "loadTarget" },
+          { "phase": "input", "narration": "载入肘上肘下对比目标点。", "action": "loadTarget" },
           { "phase": "reachable", "narration": "判定可达性与边界裕量。", "action": "checkReachable" },
           { "phase": "solve", "narration": "应用推荐候选解。", "action": "solveIk" },
           { "phase": "solve", "narration": "切换第二组候选解对比姿态。", "action": "switchSecondCandidate" },
@@ -484,12 +562,19 @@
       "loadScenario": "light",
       "loadDirection": "gravity",
       "materialPreset": "al6061",
+      "payloadMassKg": 0.3,
+      "loadPoint": "tip",
+      "loadType": "steady",
+      "sectionPreset": "standard",
+      "constraintMode": "fixed",
+      "dynamicMode": "static",
+      "temperaturePreset": "ambient",
       "loadPercent": 20,
       "exaggeration": 110,
       "demoScript": {
         "pauseBetweenStepsMs": 850,
         "steps": [
-          { "phase": "setup", "narration": "载入 L1 轻载姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "载入轻载观察姿态。", "action": "loadPose" },
           { "phase": "setup", "narration": "设置 20% 演示载荷。", "action": "setLoad" },
           { "phase": "compute", "narration": "计算应力与位移场。", "action": "runAnalysis" },
           { "phase": "explain", "narration": "轻载下各杆段应力较低。", "action": "explainHotspot" }
@@ -504,12 +589,19 @@
       "loadScenario": "rated",
       "loadDirection": "combined",
       "materialPreset": "al6061",
+      "payloadMassKg": 0.5,
+      "loadPoint": "tip",
+      "loadType": "steady",
+      "sectionPreset": "standard",
+      "constraintMode": "fixed",
+      "dynamicMode": "agile",
+      "temperaturePreset": "ambient",
       "loadPercent": 55,
       "exaggeration": 130,
       "demoScript": {
         "pauseBetweenStepsMs": 900,
         "steps": [
-          { "phase": "setup", "narration": "载入 L2 额定搬运姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "载入额定搬运姿态。", "action": "loadPose" },
           { "phase": "setup", "narration": "设置 55% 额定载荷与组合受力。", "action": "setLoad" },
           { "phase": "compute", "narration": "计算应力与位移场。", "action": "runAnalysis" },
           { "phase": "explain", "narration": "额定工况下 J2 仍为主要承载杆段。", "action": "explainHotspot" }
@@ -524,12 +616,19 @@
       "loadScenario": "limit",
       "loadDirection": "gravity",
       "materialPreset": "al6061",
+      "payloadMassKg": 1.2,
+      "loadPoint": "tip",
+      "loadType": "impact",
+      "sectionPreset": "slim",
+      "constraintMode": "cantilever",
+      "dynamicMode": "agile",
+      "temperaturePreset": "elevated",
       "loadPercent": 86,
       "exaggeration": 165,
       "demoScript": {
         "pauseBetweenStepsMs": 950,
         "steps": [
-          { "phase": "setup", "narration": "载入 L4 高载荷姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "载入极限工况高载荷姿态。", "action": "loadPose" },
           { "phase": "setup", "narration": "设置 86% 极限载荷。", "action": "setLoad" },
           { "phase": "compute", "narration": "运行简化结构力学分析。", "action": "runAnalysis" },
           { "phase": "observe", "narration": "观察 J2/J3 热点与风险等级。", "action": "observeHotspot" },

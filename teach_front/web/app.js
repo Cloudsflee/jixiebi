@@ -45,6 +45,7 @@ import {
   syncTwinToHardwareRuntime
 } from "./modules/runtime_hardware_bridge.js";
 import {
+  buildControlDemoUiRuntime,
   runCaseDemoRuntime,
   setDemoPlayingRuntime,
   stopCaseDemoRuntime
@@ -58,7 +59,9 @@ import {
   refreshFeaTextsRuntime,
   refreshFeaInputUiRuntime,
   buildFeaInputControlsRuntime,
+  buildFeaAnalysisContextRuntime,
   applyFeaPoseSourceRuntime,
+  setFeaPayloadMassRuntime,
   applyFeaLoadScenarioRuntime,
   setFeaLoadDirectionRuntime,
   setFeaMaterialPresetRuntime,
@@ -91,7 +94,7 @@ import {
   writeSelectedJointRuntime
 } from "./modules/runtime_calibration.js";
 const TEACH_WEB_VERSION = "20260519-fea-inputs";
-const TOUR_MODULE_URL = `./modules/runtime_tour_guide.js?v=20260519-tour-restore`;
+const TOUR_MODULE_URL = `./modules/runtime_tour_guide.js?v=20260519-tour-fix3`;
 const UI_STATE_STORAGE_KEY = "teach_front_ui_state_v1";
 const GATEWAY_URL_KEY = "teach_front_gateway_url";
 const ENTRY_MODE_KEY = "teach_front_entry_mode";
@@ -177,6 +180,13 @@ class TeachingDemoApp {
       loadScenario: "rated",
       loadDirection: "gravity",
       materialPreset: "al6061",
+      payloadMassKg: 0.5,
+      loadPoint: "tip",
+      loadType: "steady",
+      sectionPreset: "standard",
+      constraintMode: "fixed",
+      dynamicMode: "static",
+      temperaturePreset: "ambient",
       maxStress: 0,
       maxDisp: 0,
       safetyFactor: 0,
@@ -219,12 +229,19 @@ class TeachingDemoApp {
     this.cacheDom();
     this.initialUiState = this.loadUiState();
     this.bindStaticUi();
-    await this.loadConfig();
+    await this.initTourGuide();
+    try {
+      await this.loadConfig();
+    } catch (err) {
+      this.log(`配置加载失败（部分功能受限）: ${err?.message || err}`);
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
     this.initScene();
     this.bindViewportStateHooks();
     await this.buildRobot();
     this.buildJointUi();
-    this.buildLessonsUi();
+    this.buildControlDemoUi();
     this.populateCalibrationUi();
     this.applyJointAngles();
     this.updateOriginText();
@@ -243,8 +260,6 @@ class TeachingDemoApp {
     this.updateKinematicsReadout({ step: "input" });
     this.animate(0);
     this.log("Teaching demo initialized");
-
-    await this.initTourGuide();
   }
 
   async initTourGuide() {
@@ -254,7 +269,7 @@ class TeachingDemoApp {
       await this.tour.loadScript();
       try {
         const bundleKey = "teach_front_tour_bundle_v";
-        const bundleVer = "20260519-tour-restore";
+        const bundleVer = "20260519-tour-fix3";
         if (localStorage.getItem(bundleKey) !== bundleVer) {
           localStorage.removeItem(mod.TOUR_COMPLETED_KEY);
           try {
@@ -303,11 +318,11 @@ class TeachingDemoApp {
     this.dom.stagePanels = Array.from(document.querySelectorAll("[data-stage-panel]"));
 
     this.dom.jointControls = byId("jointControls");
-    this.dom.lessonList = byId("lessonList");
-    this.dom.lessonSpeech = byId("lessonSpeech");
-    this.dom.btnPrevLesson = byId("btnPrevLesson");
-    this.dom.btnNextLesson = byId("btnNextLesson");
-    this.dom.btnAutoLesson = byId("btnAutoLesson");
+    this.dom.controlDemoPanel = byId("controlDemoPanel");
+    this.dom.controlDemoTitle = byId("controlDemoTitle");
+    this.dom.controlDemoStepText = byId("controlDemoStepText");
+    this.dom.controlDemoProgress = byId("controlDemoProgress");
+    this.dom.controlDemoNarration = byId("controlDemoNarration");
 
     this.dom.toggleAxes = byId("toggleAxes");
     this.dom.toggleGrid = byId("toggleGrid");
@@ -365,6 +380,15 @@ class TeachingDemoApp {
     this.dom.feaLoadScenarioRow = byId("feaLoadScenarioRow");
     this.dom.feaLoadDirectionRow = byId("feaLoadDirectionRow");
     this.dom.feaMaterialPreset = byId("feaMaterialPreset");
+    this.dom.feaPayloadMass = byId("feaPayloadMass");
+    this.dom.feaPayloadMassText = byId("feaPayloadMassText");
+    this.dom.feaLoadPointRow = byId("feaLoadPointRow");
+    this.dom.feaLoadTypeRow = byId("feaLoadTypeRow");
+    this.dom.feaSectionPresetRow = byId("feaSectionPresetRow");
+    this.dom.feaConstraintModeRow = byId("feaConstraintModeRow");
+    this.dom.feaDynamicModeRow = byId("feaDynamicModeRow");
+    this.dom.feaTemperatureRow = byId("feaTemperatureRow");
+    this.dom.feaInputSummary = byId("feaInputSummary");
     this.dom.feaLoad = byId("feaLoad");
     this.dom.feaLoadText = byId("feaLoadText");
     this.dom.feaExaggeration = byId("feaExaggeration");
@@ -436,10 +460,6 @@ class TeachingDemoApp {
     this.dom.btnGatewayRecheck?.addEventListener("click", () => this.checkGatewayStatus(true));
     this.dom.btnGatewayBack?.addEventListener("click", () => this.goBackToGateway());
 
-    this.dom.btnPrevLesson?.addEventListener("click", () => this.stepLesson(-1));
-    this.dom.btnNextLesson?.addEventListener("click", () => this.stepLesson(1));
-    this.dom.btnAutoLesson?.addEventListener("click", () => this.toggleAutoLesson());
-
     this.dom.toggleAxes?.addEventListener("change", () => {
       const visible = this.dom.toggleAxes.checked;
       for (const helper of this.axisHelpers.values()) {
@@ -483,6 +503,12 @@ class TeachingDemoApp {
     });
     this.dom.feaMaterialPreset?.addEventListener("change", () => {
       setFeaMaterialPresetRuntime(this, this.dom.feaMaterialPreset.value);
+    });
+    this.dom.feaPayloadMass?.addEventListener("input", () => {
+      setFeaPayloadMassRuntime(this, Number(this.dom.feaPayloadMass.value));
+    });
+    this.dom.feaPayloadMass?.addEventListener("change", () => {
+      setFeaPayloadMassRuntime(this, Number(this.dom.feaPayloadMass.value));
     });
 
     this.dom.feaLoad?.addEventListener("input", () => {
@@ -702,6 +728,10 @@ class TeachingDemoApp {
     };
     base._energyWeights = this.config?.energyCalibration?.sectionLoadWeights || {};
     base._loadDirectionFactor = Number(dirPreset.momentFactor) || 1;
+    const feaCtx = buildFeaAnalysisContextRuntime(this);
+    if (Number.isFinite(feaCtx.dynamicGain)) {
+      base.dynamicGain = feaCtx.dynamicGain;
+    }
     return base;
   }
 
@@ -779,6 +809,10 @@ class TeachingDemoApp {
 
   buildLessonsUi() {
     return buildLessonsUiRuntime(this);
+  }
+
+  buildControlDemoUi() {
+    return buildControlDemoUiRuntime(this);
   }
 
   applyLesson(index, animate = true) {
@@ -1224,6 +1258,13 @@ class TeachingDemoApp {
           loadScenario: String(this.fea.loadScenario || "rated"),
           loadDirection: String(this.fea.loadDirection || "gravity"),
           materialPreset: String(this.fea.materialPreset || "al6061"),
+          payloadMassKg: Number(this.fea.payloadMassKg),
+          loadPoint: String(this.fea.loadPoint || "tip"),
+          loadType: String(this.fea.loadType || "steady"),
+          sectionPreset: String(this.fea.sectionPreset || "standard"),
+          constraintMode: String(this.fea.constraintMode || "fixed"),
+          dynamicMode: String(this.fea.dynamicMode || "static"),
+          temperaturePreset: String(this.fea.temperaturePreset || "ambient"),
           teaching: {
             step: String(this.feaTeachingState?.step || "setup"),
             advancedExpanded: Boolean(this.feaTeachingState?.advancedExpanded),
@@ -1380,6 +1421,22 @@ class TeachingDemoApp {
         if (this.dom.feaMaterialPreset) {
           this.dom.feaMaterialPreset.value = state.fea.materialPreset;
         }
+      }
+      const feaNum = (v, fallback) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      this.fea.payloadMassKg = feaNum(state.fea.payloadMassKg, this.fea.payloadMassKg);
+      if (this.dom.feaPayloadMass) {
+        this.dom.feaPayloadMass.value = String(this.fea.payloadMassKg);
+      }
+      if (typeof state.fea.loadPoint === "string") this.fea.loadPoint = state.fea.loadPoint;
+      if (typeof state.fea.loadType === "string") this.fea.loadType = state.fea.loadType;
+      if (typeof state.fea.sectionPreset === "string") this.fea.sectionPreset = state.fea.sectionPreset;
+      if (typeof state.fea.constraintMode === "string") this.fea.constraintMode = state.fea.constraintMode;
+      if (typeof state.fea.dynamicMode === "string") this.fea.dynamicMode = state.fea.dynamicMode;
+      if (typeof state.fea.temperaturePreset === "string") {
+        this.fea.temperaturePreset = state.fea.temperaturePreset;
       }
       if (typeof state.fea.enabled === "boolean") {
         this.fea.enabled = state.fea.enabled;

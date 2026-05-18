@@ -202,8 +202,10 @@ export function updateFeaVisualRuntime({
   const deformStyle = (feaTeachingState?.deformStyle === "real") ? "real" : "exaggerated";
   const exScale = deformStyle === "real" ? 0.42 : 1.0;
   const ex = exaggerationBase * exScale;
-  const payloadNewton = Math.max(0, loadFactor) * 12;
   const feaCtx = feaTeachingState?.analysisContext || {};
+  const payloadNewton = Number.isFinite(feaCtx.payloadNewton)
+    ? feaCtx.payloadNewton
+    : Math.max(0, loadFactor) * 12;
 
   const feaResult = evaluatePseudoFea(demoFeaModel, {
     payloadNewton,
@@ -216,7 +218,12 @@ export function updateFeaVisualRuntime({
   }, {
     material: feaCtx.material || demoFeaModel?._feaMaterial || {},
     energyWeights: feaCtx.energyWeights || demoFeaModel?._energyWeights || {},
-    loadDirectionFactor: feaCtx.loadDirectionFactor ?? 1
+    loadDirectionFactor: feaCtx.loadDirectionFactor ?? demoFeaModel?._loadDirectionFactor ?? 1,
+    impactFactor: feaCtx.impactFactor ?? 1,
+    momentLeverFactor: feaCtx.momentLeverFactor ?? 1,
+    constraintFactor: feaCtx.constraintFactor ?? 1,
+    sectionScales: feaCtx.sectionScales || {},
+    dynamicGain: feaCtx.dynamicGain
   });
 
   const peakSection = String(feaResult?.diagnostics?.peakSection || "j2");

@@ -1,12 +1,20 @@
 import {
   advanceFeaTourToComputeRuntime,
+  expandFeaAdvancedRuntime,
+  feaTourExaggerationDemoRuntime,
+  feaTourLightScenarioRuntime,
+  feaTourLoadContrastRuntime,
+  feaTourOnLoadInteractRuntime,
+  feaTourRatedSetupRuntime,
+  feaTourSeedChartRuntime,
+  feaTourShowDirectionSideRuntime,
   prepareKinematicsTourFromLessonRuntime,
   runFeaTeachingSequenceRuntime,
   runKinematicsTeachingSequenceRuntime
 } from "./runtime_kinematics_fea.js";
 import { toFiniteNumber } from "./app_math.js";
 
-export const TOUR_COMPLETED_KEY = "teach_front_tour_completed_v1";
+export const TOUR_COMPLETED_KEY = "teach_front_tour_completed_v2";
 export const TOUR_WELCOME_SKIP_SESSION_KEY = "teach_front_welcome_skip_session";
 
 function nudgeJointForTour(app, jointName, deltaDeg) {
@@ -222,11 +230,25 @@ function applyCardBox(cardEl, box, cardW) {
   });
 }
 
+function ensureCardInViewport(cardEl, box, cardW, cardH) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const m = TOUR_VIEW_MARGIN;
+  let left = box.left;
+  let top = box.top;
+  if (left < m) left = m;
+  if (top < m) top = m;
+  if (left + cardW > vw - m) left = Math.max(m, vw - m - cardW);
+  if (top + cardH > vh - m) top = Math.max(m, vh - m - cardH);
+  applyCardBox(cardEl, { left, top, right: left + cardW, bottom: top + cardH }, cardW);
+}
+
 function buildActionRegistry(app) {
   return {
     nudgeJ2: () => nudgeJointForTour(app, "J2", 8),
     applyLesson0: () => app.applyLesson(0, true),
     applyLesson1: () => app.applyLesson(1, true),
+    applyControlZero: () => app.applyLesson(0, true),
     prepareKinL3: () => prepareKinematicsTourFromLessonRuntime(app, 2, { toFiniteNumber }),
     kinFlowToSolve: () => runKinematicsTeachingSequenceRuntime(app),
     runCaseDemoKin: (id) => app.runCaseDemo(id || app.config?.labDefaults?.defaultKinLabCase || "K3", "kin"),
@@ -234,6 +256,13 @@ function buildActionRegistry(app) {
     solveIk: () => app.solveIkFromUi(),
     reverseCheck: () => app.reverseCheck(),
     feaL4: () => runFeaTeachingSequenceRuntime(app, 3),
+    feaTourRatedSetup: () => feaTourRatedSetupRuntime(app),
+    feaTourLightScenario: () => feaTourLightScenarioRuntime(app),
+    feaTourSeedChart: () => feaTourSeedChartRuntime(app),
+    feaTourLoadContrast: () => feaTourLoadContrastRuntime(app),
+    feaTourShowDirectionSide: () => feaTourShowDirectionSideRuntime(app),
+    feaTourExaggerationDemo: () => feaTourExaggerationDemoRuntime(app),
+    feaTourExpandAdvanced: () => expandFeaAdvancedRuntime(app),
     feaToCompute: () => advanceFeaTourToComputeRuntime(app),
     runFea: () => app.runFea()
   };
@@ -305,13 +334,44 @@ export class TourGuideRuntime {
     this.active = false;
     this.snapshot = null;
     this.actions = buildActionRegistry(app);
+    this.feaInteractHandlers = [];
     this.resizeHandler = () => this.reposition();
     this.keyHandler = (ev) => this.onKeyDown(ev);
   }
 
+  teardownTourInteract() {
+    document.body.classList.remove("is-tour-interactive");
+    for (const { el, handler } of this.feaInteractHandlers) {
+      el.removeEventListener("input", handler);
+      el.removeEventListener("change", handler);
+    }
+    this.feaInteractHandlers = [];
+  }
+
+  setupTourInteract(step) {
+    this.teardownTourInteract();
+    if (!step?.allowInteract) {
+      return;
+    }
+    document.body.classList.add("is-tour-interactive");
+    const selectors = Array.isArray(step.interactTargets)
+      ? step.interactTargets
+      : [step.interactTarget || step.target].filter(Boolean);
+    const handler = () => feaTourOnLoadInteractRuntime(this.app);
+    for (const sel of selectors) {
+      const el = document.querySelector(String(sel));
+      if (!el) {
+        continue;
+      }
+      el.addEventListener("input", handler);
+      el.addEventListener("change", handler);
+      this.feaInteractHandlers.push({ el, handler });
+    }
+  }
+
   async loadScript() {
     try {
-      const res = await fetch("./tour_script.json?v=20260519-tour1");
+      const res = await fetch("./tour_script.json?v=20260519-fea-tour1");
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -488,6 +548,7 @@ export class TourGuideRuntime {
     if (!this.active && silent) {
       return;
     }
+    this.teardownTourInteract();
     this.active = false;
     this.app.tourSuppressUiSave = false;
     document.body.classList.remove("is-tour-active");
@@ -590,6 +651,7 @@ export class TourGuideRuntime {
     }
 
     await this.runStepAction(step);
+    this.setupTourInteract(step);
 
     if (this.overlayEl) {
       this.overlayEl.hidden = false;
@@ -651,6 +713,12 @@ export class TourGuideRuntime {
       this.holeEl.style.display = "none";
       this.overlayEl.style.background = "rgba(8, 14, 26, 0.72)";
       applyCenterCardPosition(this.cardEl, cardW, cardH);
+      ensureCardInViewport(this.cardEl, {
+        left: (window.innerWidth - cardW) / 2,
+        top: (window.innerHeight - cardH) / 2,
+        right: (window.innerWidth + cardW) / 2,
+        bottom: (window.innerHeight + cardH) / 2
+      }, cardW, cardH);
       return;
     }
 
@@ -678,7 +746,7 @@ export class TourGuideRuntime {
       height: rect.height
     };
     const box = pickCardPosition(target, step.placement || "bottom", cardW, cardH);
-    applyCardBox(this.cardEl, box, cardW);
+    ensureCardInViewport(this.cardEl, box, cardW, cardH);
 
     try {
       targetEl?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });

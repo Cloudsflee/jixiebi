@@ -1,5 +1,11 @@
+import { drawFeaChart } from "./teaching_fea_runtime.js";
+
 function safeText(v) {
   return String(v ?? "");
+}
+
+function tourDelay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 }
 
 function formatNum(v, digits = 2) {
@@ -864,23 +870,126 @@ function findLoadScenario(presets, id) {
   return list.find((s) => s.id === id) || null;
 }
 
+function findListPreset(list, id) {
+  const arr = Array.isArray(list) ? list : [];
+  return arr.find((p) => p.id === id) || arr[0] || null;
+}
+
+function clamp(n, min, max) {
+  return Math.min(max, Math.max(min, n));
+}
+
+export function computeFeaBasePayloadNewtonRuntime(app) {
+  const presets = getFeaInputPresets(app);
+  const pm = presets.payloadMass || {};
+  const loadFactor = Math.max(0, Number(app.fea?.load) || 0) / 100;
+  const massKg = clamp(
+    Number(app.fea?.payloadMassKg) || pm.defaultKg || 0.5,
+    pm.minKg ?? 0.1,
+    pm.maxKg ?? 2
+  );
+  const ratedKg = Math.max(0.1, Number(pm.ratedKg) || 0.5);
+  const baseN = Math.max(1, Number(pm.baseNewtonAtRated) || 12);
+  return loadFactor * baseN * (massKg / ratedKg);
+}
+
 export function buildFeaAnalysisContextRuntime(app) {
   const presets = getFeaInputPresets(app);
   const matPreset = findMaterialPreset(presets, app.fea?.materialPreset || "al6061");
   const dir = findLoadDirection(presets, app.fea?.loadDirection || "gravity");
+  const loadPoint = findListPreset(presets.loadPoints, app.fea?.loadPoint || "tip");
+  const loadType = findListPreset(presets.loadTypes, app.fea?.loadType || "steady");
+  const sectionPreset = findListPreset(presets.sectionPresets, app.fea?.sectionPreset || "standard");
+  const constraint = findListPreset(presets.constraintModes, app.fea?.constraintMode || "fixed");
+  const dynamic = findListPreset(presets.dynamicModes, app.fea?.dynamicMode || "static");
+  const temperature = findListPreset(presets.temperaturePresets, app.fea?.temperaturePreset || "ambient");
   const baseMat = app.config?.feaMaterial || {};
+  const yieldFactor = Math.max(0.5, Number(temperature?.yieldFactor) || 1);
   const material = {
     ...baseMat,
-    yieldStressMpa: matPreset?.yieldStressMpa ?? baseMat.yieldStressMpa,
+    yieldStressMpa: (matPreset?.yieldStressMpa ?? baseMat.yieldStressMpa) * yieldFactor,
     sectionModulusScale: matPreset?.sectionModulusScale ?? baseMat.sectionModulusScale ?? 1
   };
+  const sectionScales = sectionPreset?.scales && typeof sectionPreset.scales === "object"
+    ? sectionPreset.scales
+    : { j2: 1, j3: 1, j4: 1 };
+  const payloadNewton = computeFeaBasePayloadNewtonRuntime(app);
+  const effectivePayloadNewton = payloadNewton
+    * (Number(dir?.momentFactor) || 1)
+    * (Number(loadType?.impactFactor) || 1);
   return {
     material,
     energyWeights: app.config?.energyCalibration?.sectionLoadWeights || {},
     loadDirectionFactor: Number(dir?.momentFactor) || 1,
+    impactFactor: Number(loadType?.impactFactor) || 1,
+    momentLeverFactor: Number(loadPoint?.momentLeverFactor) || 1,
+    constraintFactor: Number(constraint?.constraintFactor) || 1,
+    sectionScales,
+    dynamicGain: Number(dynamic?.dynamicGain),
+    payloadNewton,
+    effectivePayloadNewton,
     materialPresetId: matPreset?.id || "al6061",
-    loadDirectionId: dir?.id || "gravity"
+    loadDirectionId: dir?.id || "gravity",
+    loadPointId: loadPoint?.id || "tip",
+    loadTypeId: loadType?.id || "steady",
+    sectionPresetId: sectionPreset?.id || "standard",
+    constraintModeId: constraint?.id || "fixed",
+    dynamicModeId: dynamic?.id || "static",
+    temperaturePresetId: temperature?.id || "ambient",
+    payloadMassKg: Number(app.fea?.payloadMassKg) || presets.payloadMass?.defaultKg || 0.5
   };
+}
+
+function syncFeaFromUi(app) {
+  if (app.dom.feaPayloadMass) {
+    app.fea.payloadMassKg = Number(app.dom.feaPayloadMass.value);
+  }
+}
+
+function feaInputChanged(app) {
+  syncFeaFromUi(app);
+  refreshFeaInputUiRuntime(app);
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (typeof app.scheduleUiStateSave === "function") {
+    app.scheduleUiStateSave();
+  }
+}
+
+export function setFeaPayloadMassRuntime(app, massKg) {
+  const presets = getFeaInputPresets(app);
+  const pm = presets.payloadMass || {};
+  app.fea.payloadMassKg = clamp(Number(massKg), pm.minKg ?? 0.1, pm.maxKg ?? 2);
+  if (app.dom.feaPayloadMass) {
+    app.dom.feaPayloadMass.value = String(app.fea.payloadMassKg);
+  }
+  feaInputChanged(app);
+}
+
+export function setFeaSegmentPresetRuntime(app, field, presetId) {
+  app.fea[field] = String(presetId || "");
+  feaInputChanged(app);
+}
+
+function buildSegmentRow(app, container, list, field, dataAttr, activeId) {
+  if (!container) return;
+  container.innerHTML = list.map((item) =>
+    `<button type="button" class="fea-seg-btn${activeId === item.id ? " is-active" : ""}" data-${dataAttr}="${safeText(item.id)}" title="${safeText(item.hint || "")}" aria-pressed="${activeId === item.id ? "true" : "false"}">${safeText(item.label)}</button>`
+  ).join("");
+  container.querySelectorAll(`[data-${dataAttr}]`).forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setFeaSegmentPresetRuntime(app, field, btn.getAttribute(`data-${dataAttr}`));
+    });
+  });
+}
+
+export function updateFeaInputSummaryRuntime(app) {
+  if (!app.dom.feaInputSummary) return;
+  const ctx = app.feaTeachingState?.analysisContext || buildFeaAnalysisContextRuntime(app);
+  const n = formatNum(ctx.effectivePayloadNewton ?? ctx.payloadNewton, 1);
+  const mass = formatNum(ctx.payloadMassKg, 1);
+  app.dom.feaInputSummary.textContent =
+    `等效载荷 ≈ ${n} N（${mass} kg × ${app.fea.load}% × 方向/冲击）· 截面 ${ctx.sectionPresetId || "-"} · ${ctx.dynamicModeId || "static"} · ${ctx.temperaturePresetId || "ambient"}`;
 }
 
 export function updateFeaPoseSummaryRuntime(app) {
@@ -933,6 +1042,12 @@ export function applyFeaLoadScenarioRuntime(app, scenarioId) {
   app.fea.loadScenario = scenario.id;
   app.fea.load = Number(scenario.loadPercent);
   if (app.dom.feaLoad) app.dom.feaLoad.value = String(app.fea.load);
+  if (Number.isFinite(scenario.payloadMassKg)) {
+    app.fea.payloadMassKg = Number(scenario.payloadMassKg);
+    if (app.dom.feaPayloadMass) {
+      app.dom.feaPayloadMass.value = String(app.fea.payloadMassKg);
+    }
+  }
   refreshFeaInputUiRuntime(app);
   app.fea.enabled = true;
   app.updateFeaVisual(performance.now());
@@ -987,6 +1102,14 @@ export function applyFeaLabCaseInputsRuntime(app, labCase) {
     app.fea.exaggeration = Number(labCase.exaggeration);
     if (app.dom.feaExaggeration) app.dom.feaExaggeration.value = String(app.fea.exaggeration);
   }
+  if (Number.isFinite(labCase.payloadMassKg)) {
+    setFeaPayloadMassRuntime(app, labCase.payloadMassKg);
+  }
+  for (const field of ["loadPoint", "loadType", "sectionPreset", "constraintMode", "dynamicMode", "temperaturePreset"]) {
+    if (labCase[field]) {
+      app.fea[field] = String(labCase[field]);
+    }
+  }
   refreshFeaInputUiRuntime(app);
 }
 
@@ -1032,6 +1155,21 @@ export function buildFeaInputControlsRuntime(app) {
     ).join("");
     app.dom.feaMaterialPreset.value = app.fea.materialPreset || "al6061";
   }
+
+  const pm = presets.payloadMass || {};
+  if (app.dom.feaPayloadMass) {
+    app.dom.feaPayloadMass.min = String(pm.minKg ?? 0.1);
+    app.dom.feaPayloadMass.max = String(pm.maxKg ?? 2);
+    app.dom.feaPayloadMass.step = String(pm.stepKg ?? 0.1);
+    app.dom.feaPayloadMass.value = String(app.fea.payloadMassKg ?? pm.defaultKg ?? 0.5);
+  }
+
+  buildSegmentRow(app, app.dom.feaLoadPointRow, presets.loadPoints, "loadPoint", "fea-load-point", app.fea.loadPoint || "tip");
+  buildSegmentRow(app, app.dom.feaLoadTypeRow, presets.loadTypes, "loadType", "fea-load-type", app.fea.loadType || "steady");
+  buildSegmentRow(app, app.dom.feaSectionPresetRow, presets.sectionPresets, "sectionPreset", "fea-section-preset", app.fea.sectionPreset || "standard");
+  buildSegmentRow(app, app.dom.feaConstraintModeRow, presets.constraintModes, "constraintMode", "fea-constraint-mode", app.fea.constraintMode || "fixed");
+  buildSegmentRow(app, app.dom.feaDynamicModeRow, presets.dynamicModes, "dynamicMode", "fea-dynamic-mode", app.fea.dynamicMode || "static");
+  buildSegmentRow(app, app.dom.feaTemperatureRow, presets.temperaturePresets, "temperaturePreset", "fea-temperature", app.fea.temperaturePreset || "ambient");
 }
 
 export function refreshFeaInputUiRuntime(app) {
@@ -1057,7 +1195,29 @@ export function refreshFeaInputUiRuntime(app) {
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
+  const segMap = [
+    ["feaLoadPointRow", "loadPoint", "fea-load-point"],
+    ["feaLoadTypeRow", "loadType", "fea-load-type"],
+    ["feaSectionPresetRow", "sectionPreset", "fea-section-preset"],
+    ["feaConstraintModeRow", "constraintMode", "fea-constraint-mode"],
+    ["feaDynamicModeRow", "dynamicMode", "fea-dynamic-mode"],
+    ["feaTemperatureRow", "temperaturePreset", "fea-temperature"]
+  ];
+  for (const [domKey, field, attr] of segMap) {
+    const row = app.dom[domKey];
+    if (!row) continue;
+    row.querySelectorAll(`[data-${attr}]`).forEach((btn) => {
+      const id = btn.getAttribute(`data-${attr}`);
+      const active = id === app.fea[field];
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  if (app.dom.feaPayloadMass) {
+    app.dom.feaPayloadMass.value = String(app.fea.payloadMassKg ?? 0.5);
+  }
   updateFeaPoseSummaryRuntime(app);
+  updateFeaInputSummaryRuntime(app);
   refreshFeaTextsRuntime(app);
 }
 
@@ -1067,6 +1227,9 @@ export function refreshFeaTextsRuntime(app) {
   }
   if (app.dom.feaExaggerationText) {
     app.dom.feaExaggerationText.textContent = `${app.fea.exaggeration}%`;
+  }
+  if (app.dom.feaPayloadMassText) {
+    app.dom.feaPayloadMassText.textContent = `${formatNum(app.fea.payloadMassKg, 1)} kg`;
   }
 }
 
@@ -1173,33 +1336,36 @@ export function prepareKinematicsTourFromLessonRuntime(app, lessonIndex = 2, dep
 }
 
 export function runKinematicsTeachingSequenceRuntime(app) {
-  const caseId = app.config?.labDefaults?.defaultKinLabCase || "K3";
-  if (typeof app.runCaseDemo === "function") {
-    return app.runCaseDemo(caseId, "kin");
-  }
+  // 教学引导仅高亮步骤条，不调用 runCaseDemo（与侧栏「一键教学演示」解耦）
   const order = ["input", "reachable", "solve"];
   for (const step of order) {
     app.setKinematicsStep(step);
+    app.updateKinematicsReadout({ step });
   }
   if (app.dom.kinExplainText) {
-    app.dom.kinExplainText.textContent = "步骤 3：准备执行逆解并应用关节角。";
+    app.dom.kinExplainText.textContent = "已依次高亮「输入 → 可达性 → 求解」；下一步将执行逆解。";
   }
 }
 
 export function runFeaTeachingSequenceRuntime(app, lessonIndex = 3) {
-  void lessonIndex;
-  const caseId = app.config?.labDefaults?.defaultFeaLabCase || "F3";
-  if (typeof app.runCaseDemo === "function") {
-    return app.runCaseDemo(caseId, "fea");
-  }
+  // 教学引导仅载入工况与设置步，不播放 F3 完整 demoScript
   app.setTeachingStage("fea");
-  app.applyLesson(3, true);
+  app.fea.enabled = true;
+  app.fea.running = true;
+  const cases = Array.isArray(app.config?.feaLabCases) ? app.config.feaLabCases : [];
+  const byLesson = cases.find((c) => Number(c.lessonIndex) === Number(lessonIndex));
+  const labCase = byLesson || cases.find((c) => c.id === "F3") || cases[0];
+  if (labCase) {
+    applyFeaLabCaseInputsRuntime(app, labCase);
+  } else {
+    app.applyLesson(lessonIndex, true);
+  }
   app.feaTeachingState.step = "setup";
   updateFeaStepperUi(app);
   setFeaNarrative(app, {
-    conclusion: "已载入 L4 极限工况",
-    reason: "高载荷姿态已应用，可进入计算与观察步骤。",
-    suggestion: "点击「运行有限元演示」查看云图。",
+    conclusion: "已载入极限工况输入",
+    reason: "姿态与载荷已写入面板，尚未自动运行分析。",
+    suggestion: "按引导继续，或手动点击「运行有限元演示」。",
     explain: "步骤 1：设置载荷与变形样式。"
   });
 }
@@ -1213,4 +1379,170 @@ export function advanceFeaTourToComputeRuntime(app) {
     suggestion: "运行演示以生成云图与指标。",
     explain: "步骤 2：计算应力与位移场。"
   });
+}
+
+export function appendFeaChartPointRuntime(app) {
+  if (!Array.isArray(app.feaHistory)) {
+    app.feaHistory = [];
+  }
+  app.feaHistory.push({
+    stress: Number(app.fea.maxStress) || 0,
+    disp: Number(app.fea.maxDisp) || 0
+  });
+  if (app.feaHistory.length > 120) {
+    app.feaHistory.shift();
+  }
+  const idx = app.feaHistory.length - 1;
+  if (app.feaTeachingState) {
+    app.feaTeachingState.selectedHistoryIndex = idx;
+  }
+  if (app.dom?.chart) {
+    drawFeaChart(
+      app.dom.chart,
+      app.feaHistory,
+      app.feaTeachingState?.selectedHistoryIndex ?? idx
+    );
+  }
+  renderFeaHistoryMarks(app);
+}
+
+export function syncFeaVisualAndChartRuntime(app, { pushChart = true } = {}) {
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (pushChart) {
+    appendFeaChartPointRuntime(app);
+  }
+}
+
+export function describeFeaLoadChangeRuntime(app) {
+  const load = Number(app.fea?.load) || 0;
+  const stress = Number(app.fea?.maxStress) || 0;
+  const disp = Number(app.fea?.maxDisp) || 0;
+  return `当前载荷 ${load}%：应力约 ${stress.toFixed(1)} MPa，位移约 ${disp.toFixed(3)} mm。载荷增大 → 等效弯矩增大 → 趋势点上移、云图更易偏暖色。`;
+}
+
+export function feaTourOnLoadInteractRuntime(app) {
+  syncFeaVisualAndChartRuntime(app, { pushChart: true });
+  if (app.dom.feaExplainText) {
+    app.dom.feaExplainText.textContent = describeFeaLoadChangeRuntime(app);
+  }
+}
+
+export function feaTourRatedSetupRuntime(app) {
+  app.setTeachingStage("fea");
+  app.fea.enabled = true;
+  app.fea.running = false;
+  const cases = Array.isArray(app.config?.feaLabCases) ? app.config.feaLabCases : [];
+  const labCase = cases.find((c) => c.id === "F2") || cases[0];
+  if (labCase) {
+    applyFeaLabCaseInputsRuntime(app, labCase);
+  }
+  app.feaTeachingState.step = "setup";
+  updateFeaStepperUi(app);
+  setFeaNarrative(app, {
+    conclusion: "已载入额定搬运工况",
+    reason: "姿态与 55% 额定载荷已写入面板；姿态来源可与 01/02 孪生联动。",
+    suggestion: "继续了解载荷预设、方向与材料参数。",
+    explain: "步骤 1：工况输入 — 姿态与几何。"
+  });
+}
+
+export function feaTourLightScenarioRuntime(app) {
+  applyFeaLoadScenarioRuntime(app, "light");
+  setFeaNarrative(app, {
+    conclusion: "轻载工况 20%",
+    reason: "任务阶段预设会同步载荷强度与末端质量，便于课堂快速切换。",
+    explain: "轻载适合观察整体刚度与低应力分布。"
+  });
+}
+
+export async function feaTourSeedChartRuntime(app) {
+  app.setTeachingStage("fea");
+  app.fea.enabled = true;
+  app.fea.running = true;
+  syncFeaVisualAndChartRuntime(app, { pushChart: true });
+  await tourDelay(500);
+  syncFeaVisualAndChartRuntime(app, { pushChart: true });
+  setFeaNarrative(app, {
+    conclusion: "趋势图已建立基线",
+    reason: "橙色曲线为位移 (mm)，深色为应力 (MPa)；黄/红虚线为预警与危险阈值。",
+    suggestion: "下一步将自动对比轻载、额定、极限三档载荷。"
+  });
+}
+
+export async function feaTourLoadContrastRuntime(app) {
+  app.setTeachingStage("fea");
+  app.fea.enabled = true;
+  app.fea.running = true;
+  const stages = [
+    {
+      load: 25,
+      scenario: "light",
+      explain: "轻载 25%：等效弯矩小，应力/位移点处于曲线低位，云图偏冷色。"
+    },
+    {
+      load: 55,
+      scenario: "rated",
+      explain: "额定 55%：J2 承担主要弯矩，曲线明显抬升，对应日常搬运任务。"
+    },
+    {
+      load: 86,
+      scenario: "limit",
+      explain: "极限 86%：应力逼近预警虚线，安全系数下降，云图热点偏红。"
+    }
+  ];
+  for (const s of stages) {
+    applyFeaLoadScenarioRuntime(app, s.scenario);
+    app.fea.load = s.load;
+    if (app.dom.feaLoad) {
+      app.dom.feaLoad.value = String(s.load);
+    }
+    refreshFeaInputUiRuntime(app);
+    syncFeaVisualAndChartRuntime(app, { pushChart: true });
+    setFeaNarrative(app, {
+      conclusion: `当前载荷 ${s.load}%`,
+      reason: s.explain,
+      suggestion: "载荷越高，趋势点与核心指标同步上移。"
+    });
+    await tourDelay(900);
+  }
+}
+
+export function feaTourShowDirectionSideRuntime(app) {
+  setFeaLoadDirectionRuntime(app, "lateral");
+  syncFeaVisualAndChartRuntime(app, { pushChart: true });
+  setFeaNarrative(app, {
+    conclusion: "已切换为侧向载荷",
+    reason: "侧向受力增大弯矩臂（momentFactor≈1.12），同等载荷%下应力略高于重力主导。",
+    suggestion: "可对比「组合」方向观察弯扭组合效应。"
+  });
+}
+
+export function feaTourExaggerationDemoRuntime(app) {
+  const stressBefore = Number(app.fea?.maxStress) || 0;
+  const historyLenBefore = app.feaHistory?.length || 0;
+  if (app.dom.feaExaggeration) {
+    app.fea.exaggeration = 180;
+    app.dom.feaExaggeration.value = "180";
+  }
+  if (typeof app.refreshFeaTexts === "function") {
+    app.refreshFeaTexts();
+  }
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  const stressAfter = Number(app.fea?.maxStress) || 0;
+  setFeaNarrative(app, {
+    conclusion: "变形放大仅影响云图可见度",
+    reason: `已将变形放大调至 180%：云图变形更明显，应力仍为 ${stressAfter.toFixed(1)} MPa（与调整前 ${stressBefore.toFixed(1)} MPa 一致）。`,
+    suggestion: "趋势图点数未因该项增加，说明其不参与力学计算。"
+  });
+  if ((app.feaHistory?.length || 0) === historyLenBefore && app.dom.feaExplainText) {
+    app.dom.feaExplainText.textContent += " 趋势曲线不因变形放大而改变。";
+  }
+}
+
+export function expandFeaAdvancedRuntime(app) {
+  if (!app.feaTeachingState.advancedExpanded) {
+    toggleFeaAdvancedRuntime(app);
+  }
 }

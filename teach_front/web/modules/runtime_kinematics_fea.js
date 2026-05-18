@@ -556,6 +556,281 @@ export function updateEefReadoutRuntime(app, deps) {
   app.updateKinematicsReadout({ step: "validate" });
 }
 
+function setFeaNarrative(app, payload = {}) {
+  const conclusion = safeText(payload.conclusion || "Not started");
+  const reason = safeText(payload.reason || "Configure load and run simulation.");
+  const suggestion = safeText(payload.suggestion || "Use step replay to observe response changes.");
+  const explain = safeText(payload.explain || reason);
+
+  if (app.dom.feaStatusText) {
+    app.dom.feaStatusText.innerHTML = `<strong>Conclusion:</strong> ${conclusion}<br /><strong>Reason:</strong> ${reason}<br /><strong>Suggestion:</strong> ${suggestion}`;
+  }
+  if (app.dom.feaExplainText) {
+    app.dom.feaExplainText.textContent = explain;
+  }
+}
+
+function updateFeaStepperUi(app) {
+  const order = ["setup", "compute", "observe", "explain"];
+  const step = safeText(app.feaTeachingState?.step || "setup");
+  const index = Math.max(0, order.indexOf(step));
+
+  if (app.dom.feaStepText) {
+    const map = {
+      setup: "Step 1/4 Setup",
+      compute: "Step 2/4 Compute",
+      observe: "Step 3/4 Observe",
+      explain: "Step 4/4 Explain"
+    };
+    app.dom.feaStepText.textContent = map[step] || "Step 1/4 Setup";
+  }
+
+  const items = Array.from(document.querySelectorAll("#feaStepper li[data-fea-step]"));
+  items.forEach((li, idx) => {
+    li.classList.toggle("is-active", idx === index);
+    li.classList.toggle("is-done", idx < index);
+  });
+
+  if (app.dom.btnFeaStepPrev) {
+    app.dom.btnFeaStepPrev.disabled = index <= 0;
+  }
+  if (app.dom.btnFeaStepNext) {
+    app.dom.btnFeaStepNext.disabled = index >= order.length - 1;
+    app.dom.btnFeaStepNext.classList.toggle("btn-strong", index < order.length - 1);
+  }
+}
+
+function updateFeaLegendState(app, hotspotLevel) {
+  const level = safeText(hotspotLevel || "").toLowerCase();
+  const map = {
+    low: "Low",
+    medium: "Medium",
+    high: "High",
+    critical: "Critical"
+  };
+  if (app.dom.feaLegendState) {
+    app.dom.feaLegendState.textContent = map[level] || "-";
+  }
+}
+
+function updateFeaSectionContrib(app, sectionRank = []) {
+  const rows = Array.isArray(sectionRank) ? sectionRank : [];
+  if (app.dom.feaSectionRows) {
+    if (!rows.length) {
+      app.dom.feaSectionRows.innerHTML = '<p class="fea-empty">No diagnostics yet. Run FEA first.</p>';
+    } else {
+      app.dom.feaSectionRows.innerHTML = rows.map((r) => `
+        <div class="fea-section-row${r.rank === 1 ? " is-top" : ""}">
+          <span>${safeText(String(r.section || "").toUpperCase())}</span>
+          <span>${formatNum(Number(r.stressPct || 0) * 100, 1)}%</span>
+          <span>${formatNum(Number(r.dispPct || 0) * 100, 1)}%</span>
+        </div>
+      `).join("");
+    }
+  }
+
+  const peak = rows[0] || null;
+  if (app.dom.feaRiskReason) {
+    app.dom.feaRiskReason.textContent = peak
+      ? `${safeText(String(peak.section).toUpperCase())} dominates. Stress ${formatNum(peak.stressMpa, 1)} MPa, disp ${formatNum(peak.deformationMm, 3)} mm.`
+      : "-";
+  }
+}
+
+function renderFeaHistoryMarks(app) {
+  if (!app.dom.feaHistoryList) return;
+  const marks = Array.isArray(app.feaTeachingState?.historyMarks) ? app.feaTeachingState.historyMarks : [];
+  if (!marks.length) {
+    app.dom.feaHistoryList.innerHTML = '<p class="fea-empty">No keyframes yet.</p>';
+    return;
+  }
+
+  const selected = Number.isFinite(app.feaTeachingState.selectedHistoryIndex)
+    ? app.feaTeachingState.selectedHistoryIndex
+    : (marks.length - 1);
+  app.feaTeachingState.selectedHistoryIndex = selected;
+
+  app.dom.feaHistoryList.innerHTML = marks.slice(-12).map((m, idx) => {
+    const globalIdx = marks.length - Math.min(12, marks.length) + idx;
+    const active = globalIdx === selected;
+    return `
+      <button type="button" class="fea-history-item${active ? " is-active" : ""}" data-mark-index="${globalIdx}">
+        <span>T${globalIdx + 1} | ${safeText(m.risk || "-")}</span>
+        <span>${formatNum(m.stress, 1)} MPa / ${formatNum(m.disp, 3)} mm</span>
+      </button>
+    `;
+  }).join("");
+
+  const items = Array.from(app.dom.feaHistoryList.querySelectorAll('[data-mark-index]'));
+  items.forEach((el) => {
+    el.addEventListener("click", () => {
+      const idx = Number(el.getAttribute("data-mark-index"));
+      if (!Number.isFinite(idx)) return;
+      replayFeaHistoryMarkRuntime(app, idx);
+      if (typeof app.scheduleUiStateSave === "function") app.scheduleUiStateSave();
+    });
+  });
+}
+
+function updateFeaTeachingPanel(app, payload = {}) {
+  const diagnostics = payload.diagnostics || {};
+  const sectionRank = Array.isArray(diagnostics.sectionRank) ? diagnostics.sectionRank : [];
+  updateFeaStepperUi(app);
+
+  updateFeaSectionContrib(app, sectionRank);
+  updateFeaLegendState(app, payload.hotspotLevel);
+  renderFeaHistoryMarks(app);
+}
+
+function focusFeaPeakSection(app) {
+  const section = safeText(app.feaTeachingState?.focusSection || "").toLowerCase();
+  if (!section || !app.controls || !app.camera || !Array.isArray(app.partRecords)) {
+    return;
+  }
+
+  const targets = app.partRecords.filter((r) => String(r?.part?.target || "").toLowerCase() === section);
+  if (!targets.length) {
+    return;
+  }
+
+  const Vec3 = app.camera.position?.constructor;
+  if (!Vec3) {
+    return;
+  }
+  const center = new Vec3(0, 0, 0);
+  let count = 0;
+  targets.forEach((r) => {
+    if (!r?.mesh?.getWorldPosition) return;
+    const p = r.mesh.getWorldPosition(new Vec3());
+    center.add(p);
+    count += 1;
+  });
+  if (!count) return;
+  center.multiplyScalar(1 / count);
+
+  const camTarget = center.clone().add(new Vec3(120, 90, 120));
+  app.camera.position.lerp(camTarget, 0.35);
+  app.controls.target.lerp(center, 0.45);
+  app.controls.update();
+}
+
+export function toggleFeaAdvancedRuntime(app) {
+  app.feaTeachingState.advancedExpanded = !Boolean(app.feaTeachingState.advancedExpanded);
+  const expanded = app.feaTeachingState.advancedExpanded;
+  if (app.dom.feaAdvancedPanel) {
+    app.dom.feaAdvancedPanel.hidden = !expanded;
+  }
+  if (app.dom.btnToggleFeaAdvanced) {
+    app.dom.btnToggleFeaAdvanced.textContent = expanded ? "Hide Advanced" : "Show Advanced";
+  }
+}
+
+export function runFeaStepRuntime(app, direction) {
+  const order = ["setup", "compute", "observe", "explain"];
+  const current = safeText(app.feaTeachingState.step || "setup");
+  const idx = Math.max(0, order.indexOf(current));
+  const next = order[Math.max(0, Math.min(order.length - 1, idx + direction))];
+  app.feaTeachingState.step = next;
+
+  const explainMap = {
+    setup: "Step 1: define load and deformation style.",
+    compute: "Step 2: compute stress and displacement field.",
+    observe: "Step 3: observe cloud map, hotspot and risk trend.",
+    explain: "Step 4: explain why this segment dominates risk."
+  };
+
+  setFeaNarrative(app, {
+    conclusion: `FEA flow moved to ${next}`,
+    reason: explainMap[next],
+    suggestion: "Use keyframe replay to compare adjacent states.",
+    explain: explainMap[next]
+  });
+  updateFeaStepperUi(app);
+}
+
+export function toggleFeaHotspotRuntime(app) {
+  app.feaTeachingState.showHotspot = !Boolean(app.feaTeachingState.showHotspot);
+  if (app.dom.btnFeaHotspot) {
+    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "ON" : "OFF";
+    app.dom.btnFeaHotspot.setAttribute("aria-pressed", app.feaTeachingState.showHotspot ? "true" : "false");
+    app.dom.btnFeaHotspot.classList.toggle("is-on", app.feaTeachingState.showHotspot);
+  }
+}
+
+function updateFeaDeformSegmentUi(app) {
+  const style = app.feaTeachingState.deformStyle === "real" ? "real" : "exaggerated";
+  const isReal = style === "real";
+  if (app.dom.btnFeaDeformExaggerated) {
+    app.dom.btnFeaDeformExaggerated.classList.toggle("is-active", !isReal);
+    app.dom.btnFeaDeformExaggerated.setAttribute("aria-pressed", !isReal ? "true" : "false");
+  }
+  if (app.dom.btnFeaDeformReal) {
+    app.dom.btnFeaDeformReal.classList.toggle("is-active", isReal);
+    app.dom.btnFeaDeformReal.setAttribute("aria-pressed", isReal ? "true" : "false");
+  }
+  if (app.dom.btnFeaDeformStyle) {
+    app.dom.btnFeaDeformStyle.textContent = isReal ? "Deform: Real" : "Deform: Exaggerated";
+  }
+}
+
+export function toggleFeaDeformStyleRuntime(app, mode) {
+  if (mode === "real" || mode === "exaggerated") {
+    app.feaTeachingState.deformStyle = mode;
+  } else {
+    app.feaTeachingState.deformStyle = app.feaTeachingState.deformStyle === "real" ? "exaggerated" : "real";
+  }
+  updateFeaDeformSegmentUi(app);
+}
+
+export function focusFeaRiskSectionRuntime(app) {
+  focusFeaPeakSection(app);
+  setFeaNarrative(app, {
+    conclusion: "Camera focused on risk segment",
+    reason: `Current focus: ${safeText(app.feaTeachingState.focusSection || "-").toUpperCase()}.`,
+    suggestion: "Observe color and displacement around hotspot.",
+    explain: "This view helps students connect index changes and model behavior."
+  });
+}
+
+export function replayFeaHistoryMarkRuntime(app, index) {
+  const marks = Array.isArray(app.feaTeachingState.historyMarks) ? app.feaTeachingState.historyMarks : [];
+  if (!Number.isFinite(index) || index < 0 || index >= marks.length) {
+    return;
+  }
+
+  const mark = marks[index];
+  app.feaTeachingState.selectedHistoryIndex = index;
+  app.fea.load = Number(mark.load);
+  app.fea.exaggeration = Number(mark.exaggeration);
+  if (app.dom.feaLoad) app.dom.feaLoad.value = String(app.fea.load);
+  if (app.dom.feaExaggeration) app.dom.feaExaggeration.value = String(app.fea.exaggeration);
+  app.refreshFeaTexts();
+
+  setFeaNarrative(app, {
+    conclusion: `Replay keyframe T${index + 1}`,
+    reason: `Stress ${formatNum(mark.stress, 1)} MPa, disp ${formatNum(mark.disp, 3)} mm, risk ${safeText(mark.risk)}.`,
+    suggestion: "Compare with nearby keyframes to learn trend changes.",
+    explain: safeText(mark.diagnostics?.riskReason || "Trend replay.")
+  });
+
+  app.updateFeaVisual(performance.now());
+}
+
+export function refreshFeaTeachingUiRuntime(app) {
+  const expanded = Boolean(app.feaTeachingState?.advancedExpanded);
+  if (app.dom.feaAdvancedPanel) app.dom.feaAdvancedPanel.hidden = !expanded;
+  if (app.dom.btnToggleFeaAdvanced) app.dom.btnToggleFeaAdvanced.textContent = expanded ? "Hide Advanced" : "Show Advanced";
+
+  if (app.dom.btnFeaHotspot) {
+    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "ON" : "OFF";
+    app.dom.btnFeaHotspot.setAttribute("aria-pressed", app.feaTeachingState.showHotspot ? "true" : "false");
+    app.dom.btnFeaHotspot.classList.toggle("is-on", app.feaTeachingState.showHotspot);
+  }
+  updateFeaDeformSegmentUi(app);
+
+  updateFeaTeachingPanel(app, {});
+}
+
 export function refreshFeaTextsRuntime(app) {
   if (app.dom.feaLoadText) {
     app.dom.feaLoadText.textContent = `${app.fea.load}%`;
@@ -569,9 +844,17 @@ export function runFeaRuntime(app) {
   app.setTeachingStage("fea");
   app.fea.enabled = true;
   app.fea.running = true;
+  app.feaTeachingState.step = "compute";
   if (app.dom.modeText) {
     app.dom.modeText.textContent = "有限元演示";
   }
+  updateFeaStepperUi(app);
+  setFeaNarrative(app, {
+    conclusion: "Simulation running",
+    reason: "Computing stress and displacement fields with current load.",
+    suggestion: "Move to Observe step to inspect hotspot and trend changes.",
+    explain: "Use replay and risk focus to connect numeric changes with model color/deformation."
+  });
   app.updateFeaVisual(performance.now());
   app.log("FEA simulation started", {
     load: app.fea.load,
@@ -602,20 +885,40 @@ export function updateFeaVisualRuntimeFacade(app, nowMs, deps) {
       metricDisp: app.dom.metricDisp,
       metricSf: app.dom.metricSf,
       metricRisk: app.dom.metricRisk
-    }
+    },
+    feaTeachingState: app.feaTeachingState
   });
 
   app.lastFeaUpdate = result.lastFeaUpdate;
   app.lastHistoryPush = result.lastHistoryPush;
+
+  if (result.snapshot) {
+    app.feaTeachingState.focusSection = safeText(result.snapshot?.diagnostics?.peakSection || app.feaTeachingState.focusSection || "j2").toLowerCase();
+    app.feaTeachingState.lastDiagnostics = result.snapshot?.diagnostics || null;
+    updateFeaTeachingPanel(app, {
+      diagnostics: result.snapshot?.diagnostics || null,
+      hotspotLevel: result.snapshot?.hotspotLevel || ""
+    });
+  }
 
   if (result.historyPushed) {
     app.feaHistory.push({
       stress: app.fea.maxStress,
       disp: app.fea.maxDisp
     });
-    if (app.feaHistory.length > 90) {
+    if (app.feaHistory.length > 120) {
       app.feaHistory.shift();
     }
-    drawFeaChartCore(app.dom.chart, app.feaHistory);
+
+    if (result.snapshot) {
+      app.feaTeachingState.historyMarks.push(result.snapshot);
+      if (app.feaTeachingState.historyMarks.length > 120) {
+        app.feaTeachingState.historyMarks.shift();
+      }
+      app.feaTeachingState.selectedHistoryIndex = app.feaTeachingState.historyMarks.length - 1;
+    }
+
+    drawFeaChartCore(app.dom.chart, app.feaHistory, app.feaTeachingState.selectedHistoryIndex);
+    renderFeaHistoryMarks(app);
   }
 }

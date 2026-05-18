@@ -40,12 +40,16 @@ import {
   toggleAutoLessonRuntime
 } from "./modules/runtime_teaching_control.js";
 import {
+  focusFeaRiskSectionRuntime,
   getKinematicsTargetFromUiRuntime,
   projectTargetToReachableRuntime,
+  refreshFeaTeachingUiRuntime,
   refreshKinematicsTeachingUiRuntime,
   refreshFeaTextsRuntime,
+  replayFeaHistoryMarkRuntime,
   reverseCheckRuntime,
   runFeaRuntime,
+  runFeaStepRuntime,
   runKinematicsPathDemoRuntime,
   runKinematicsStepRuntime,
   setKinematicsChipRuntime,
@@ -53,7 +57,10 @@ import {
   setKinematicsStepRuntime,
   solveFkToUiRuntime,
   solveIkFromUiRuntime,
+  toggleFeaAdvancedRuntime,
   toggleFeaAnimationRuntime,
+  toggleFeaDeformStyleRuntime,
+  toggleFeaHotspotRuntime,
   toggleKinematicsAdvancedRuntime,
   updateEefReadoutRuntime,
   updateFeaVisualRuntimeFacade,
@@ -154,6 +161,17 @@ class TeachingDemoApp {
       safetyFactor: 0,
       risk: "LOW"
     };
+    this.feaTeachingState = {
+      step: "setup",
+      advancedExpanded: false,
+      focusSection: "j2",
+      showHotspot: true,
+      deformStyle: "exaggerated",
+      selectedHistoryIndex: -1,
+      historyMarks: [],
+      lastDiagnostics: null,
+      pulseEnabled: true
+    };
     this.feaHistory = [];
     this.lastHistoryPush = 0;
     this.lastFeaUpdate = 0;
@@ -185,8 +203,9 @@ class TeachingDemoApp {
     this.updateEefReadout();
     this.refreshFeaTexts();
     this.refreshKinematicsTeachingUi();
+    this.refreshFeaTeachingUi();
     this.checkGatewayStatus(false);
-    drawFeaChartCore(this.dom.chart, this.feaHistory);
+    drawFeaChartCore(this.dom.chart, this.feaHistory, this.feaTeachingState.selectedHistoryIndex);
     const restored = this.restoreUiState();
     if (!restored) {
       this.setKinematicsMode("ik");
@@ -281,10 +300,26 @@ class TeachingDemoApp {
     this.dom.feaExaggerationText = byId("feaExaggerationText");
     this.dom.btnRunFea = byId("btnRunFea");
     this.dom.btnPauseFea = byId("btnPauseFea");
+    this.dom.btnFeaStepPrev = byId("btnFeaStepPrev");
+    this.dom.btnFeaStepNext = byId("btnFeaStepNext");
+    this.dom.btnToggleFeaAdvanced = byId("btnToggleFeaAdvanced");
+    this.dom.btnFeaHotspot = byId("btnFeaHotspot");
+    this.dom.btnFeaDeformStyle = byId("btnFeaDeformStyle");
+    this.dom.btnFeaDeformExaggerated = byId("btnFeaDeformExaggerated");
+    this.dom.btnFeaDeformReal = byId("btnFeaDeformReal");
+    this.dom.btnFeaFocusRisk = byId("btnFeaFocusRisk");
     this.dom.metricStress = byId("metricStress");
     this.dom.metricDisp = byId("metricDisp");
     this.dom.metricSf = byId("metricSf");
     this.dom.metricRisk = byId("metricRisk");
+    this.dom.feaStatusText = byId("feaStatusText");
+    this.dom.feaExplainText = byId("feaExplainText");
+    this.dom.feaStepText = byId("feaStepText");
+    this.dom.feaLegendState = byId("feaLegendState");
+    this.dom.feaAdvancedPanel = byId("feaAdvancedPanel");
+    this.dom.feaSectionRows = byId("feaSectionRows");
+    this.dom.feaRiskReason = byId("feaRiskReason");
+    this.dom.feaHistoryList = byId("feaHistoryList");
     this.dom.chart = byId("feaChart");
 
     const collapsed = document.body.classList.contains("is-sidebar-collapsed");
@@ -343,6 +378,14 @@ class TeachingDemoApp {
 
     this.dom.btnRunFea?.addEventListener("click", () => this.runFea());
     this.dom.btnPauseFea?.addEventListener("click", () => this.toggleFeaAnimation());
+    this.dom.btnFeaStepPrev?.addEventListener("click", () => this.runFeaStep(-1));
+    this.dom.btnFeaStepNext?.addEventListener("click", () => this.runFeaStep(1));
+    this.dom.btnToggleFeaAdvanced?.addEventListener("click", () => this.toggleFeaAdvanced());
+    this.dom.btnFeaHotspot?.addEventListener("click", () => this.toggleFeaHotspot());
+    this.dom.btnFeaDeformStyle?.addEventListener("click", () => this.toggleFeaDeformStyle());
+    this.dom.btnFeaDeformExaggerated?.addEventListener("click", () => this.toggleFeaDeformStyle("exaggerated"));
+    this.dom.btnFeaDeformReal?.addEventListener("click", () => this.toggleFeaDeformStyle("real"));
+    this.dom.btnFeaFocusRisk?.addEventListener("click", () => this.focusFeaRiskSection());
 
     this.dom.feaLoad?.addEventListener("input", () => {
       this.fea.load = Number(this.dom.feaLoad.value);
@@ -863,6 +906,46 @@ class TeachingDemoApp {
     return result;
   }
 
+  runFeaStep(direction) {
+    const result = runFeaStepRuntime(this, direction);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  toggleFeaAdvanced() {
+    const result = toggleFeaAdvancedRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  toggleFeaHotspot() {
+    const result = toggleFeaHotspotRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  toggleFeaDeformStyle(mode) {
+    const result = toggleFeaDeformStyleRuntime(this, mode);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  focusFeaRiskSection() {
+    const result = focusFeaRiskSectionRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  replayFeaHistoryMark(index) {
+    const result = replayFeaHistoryMarkRuntime(this, index);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  refreshFeaTeachingUi() {
+    return refreshFeaTeachingUiRuntime(this);
+  }
+
   toggleFeaAnimation() {
     const result = toggleFeaAnimationRuntime(this);
     this.scheduleUiStateSave();
@@ -965,7 +1048,15 @@ class TeachingDemoApp {
           enabled: Boolean(this.fea.enabled),
           running: Boolean(this.fea.running),
           load: Number(this.fea.load),
-          exaggeration: Number(this.fea.exaggeration)
+          exaggeration: Number(this.fea.exaggeration),
+          teaching: {
+            step: String(this.feaTeachingState?.step || "setup"),
+            advancedExpanded: Boolean(this.feaTeachingState?.advancedExpanded),
+            focusSection: String(this.feaTeachingState?.focusSection || "j2"),
+            showHotspot: Boolean(this.feaTeachingState?.showHotspot),
+            deformStyle: String(this.feaTeachingState?.deformStyle || "exaggerated"),
+            selectedHistoryIndex: Number(this.feaTeachingState?.selectedHistoryIndex ?? -1)
+          }
         },
         camera: this.camera && this.controls
           ? {
@@ -1103,13 +1194,25 @@ class TeachingDemoApp {
       if (typeof state.fea.running === "boolean") {
         this.fea.running = state.fea.running;
       }
+      if (state.fea.teaching && typeof state.fea.teaching === "object") {
+        const t = state.fea.teaching;
+        if (typeof t.step === "string") this.feaTeachingState.step = t.step;
+        if (typeof t.advancedExpanded === "boolean") this.feaTeachingState.advancedExpanded = t.advancedExpanded;
+        if (typeof t.focusSection === "string") this.feaTeachingState.focusSection = t.focusSection;
+        if (typeof t.showHotspot === "boolean") this.feaTeachingState.showHotspot = t.showHotspot;
+        if (typeof t.deformStyle === "string") this.feaTeachingState.deformStyle = t.deformStyle;
+        const hIdx = Number(t.selectedHistoryIndex);
+        if (Number.isFinite(hIdx)) this.feaTeachingState.selectedHistoryIndex = hIdx;
+      }
       if (this.dom.btnPauseFea) {
-        this.dom.btnPauseFea.textContent = this.fea.running ? "暂停形变动画" : "恢复形变动画";
+        this.dom.btnPauseFea.textContent = this.fea.running ? "Pause Deformation" : "Resume Deformation";
       }
       this.refreshFeaTexts();
+      this.refreshFeaTeachingUi();
       if (this.fea.enabled) {
         this.updateFeaVisual(performance.now());
       }
+      drawFeaChartCore(this.dom.chart, this.feaHistory, this.feaTeachingState.selectedHistoryIndex);
     }
 
     if (state.jointAngles && typeof state.jointAngles === "object") {

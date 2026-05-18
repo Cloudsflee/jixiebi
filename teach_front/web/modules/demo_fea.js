@@ -1,4 +1,4 @@
-function toFinite(value, fallback = 0) {
+﻿function toFinite(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -14,6 +14,13 @@ function normalizeSection(raw = {}, defaults = {}) {
     strengthArea: Math.max(1, toFinite(src.strengthArea, defaults.strengthArea || 70)),
     compliance: Math.max(0.0001, toFinite(src.compliance, defaults.compliance || 0.01))
   };
+}
+
+function toneFromRatio(ratio) {
+  if (ratio < 0.5) return "low";
+  if (ratio < 0.75) return "medium";
+  if (ratio < 0.95) return "high";
+  return "critical";
 }
 
 export const DEFAULT_PSEUDO_FEA_MODEL = Object.freeze({
@@ -69,6 +76,45 @@ function calcNodeStress(model, section, payloadN, angleDeg, couplingDeg = 0) {
   };
 }
 
+function buildDiagnostics(byTarget, summary) {
+  const entries = ["j2", "j3", "j4"].map((key) => {
+    const node = byTarget[key] || {};
+    return {
+      section: key,
+      stressMpa: toFinite(node.stressMpa, 0),
+      deformationMm: toFinite(node.deformationMm, 0),
+      ratio: toFinite(node.stressRatio, 0)
+    };
+  });
+
+  const sorted = entries.slice().sort((a, b) => b.ratio - a.ratio);
+  const peak = sorted[0] || { section: "j2", ratio: 0, stressMpa: 0, deformationMm: 0 };
+  const hotspotLevel = toneFromRatio(peak.ratio);
+
+  const riskReason = peak.ratio >= 0.95
+    ? `${peak.section.toUpperCase()} segment is close to yield.`
+    : peak.ratio >= 0.75
+      ? `${peak.section.toUpperCase()} segment is carrying dominant stress.`
+      : "Load is distributed and remains in controllable range.";
+
+  const sectionRank = sorted.map((s, idx) => ({
+    rank: idx + 1,
+    section: s.section,
+    stressMpa: s.stressMpa,
+    deformationMm: s.deformationMm,
+    ratio: s.ratio,
+    stressPct: summary.maxStressMpa > 1e-9 ? (s.stressMpa / summary.maxStressMpa) : 0,
+    dispPct: summary.totalDeformationMm > 1e-9 ? (s.deformationMm / summary.totalDeformationMm) : 0
+  }));
+
+  return {
+    peakSection: peak.section,
+    sectionRank,
+    riskReason,
+    hotspotLevel
+  };
+}
+
 export function evaluatePseudoFea(modelInput = {}, input = {}) {
   const model = normalizePseudoFeaModel(modelInput);
   const payloadNewton = Math.max(0, toFinite(input.payloadNewton, 0)) * model.payloadScale;
@@ -89,17 +135,19 @@ export function evaluatePseudoFea(modelInput = {}, input = {}) {
   const maxRatio = Math.max(byTarget.j2.stressRatio, byTarget.j3.stressRatio, byTarget.j4.stressRatio);
   const totalDeformationMm = byTarget.j2.deformationMm + byTarget.j3.deformationMm + byTarget.j4.deformationMm;
 
+  const summary = {
+    maxStressMpa,
+    maxRatio,
+    totalDeformationMm
+  };
+
   return {
     ok: true,
     model,
     payloadNewton,
     jointDeg: { j1, j2, j3, j4 },
     byTarget,
-    summary: {
-      maxStressMpa,
-      maxRatio,
-      totalDeformationMm
-    }
+    summary,
+    diagnostics: buildDiagnostics(byTarget, summary)
   };
 }
-

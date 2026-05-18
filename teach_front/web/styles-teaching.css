@@ -1071,6 +1071,123 @@
   }
 }
 
+.lab-step-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 2px solid #8eb8e8;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e8f2ff 0%, #dcecff 100%);
+  box-shadow: 0 2px 8px rgba(18, 67, 109, 0.08);
+  flex-shrink: 0;
+}
+
+.lab-step-nav-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a4f82;
+  white-space: nowrap;
+}
+
+.lab-step-nav-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.lab-step-next-btn {
+  min-width: 108px;
+  font-weight: 700;
+}
+
+.fea-step-nav .fea-stepper-main {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.fea-step-nav .fea-stepper-actions {
+  flex-shrink: 0;
+}
+
+body.is-demo-playing .lab-step-nav {
+  pointer-events: auto;
+  position: relative;
+  z-index: 5;
+}
+
+.fea-model-tag {
+  font-size: 12px;
+  font-weight: 500;
+  color: #5a7a9a;
+}
+
+.fea-field-label {
+  margin: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2a4a6e;
+}
+
+.fea-field-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6a849c;
+}
+
+.fea-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #c5d8ee;
+  background: #fff;
+  font-size: 14px;
+  color: #1a3550;
+}
+
+.fea-pose-summary {
+  margin: 4px 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #eef5fc;
+  border: 1px solid #d2e3f5;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #355a7a;
+}
+
+.fea-preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.fea-preset-btn {
+  padding: 8px 12px;
+  font-size: 13px;
+  min-height: 36px;
+}
+
+.fea-preset-btn.is-active {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #fff;
+  border-color: transparent;
+}
+
+.fea-direction-segment {
+  margin-bottom: 8px;
+}
+
+.fea-col.fea-controls .slider-label {
+  margin-top: 8px;
+}
+
 .kin-actions-secondary {
   margin-top: 0;
 }
@@ -1657,8 +1774,13 @@
   pointer-events: auto;
 }
 
-body.is-tour-active {
+body.is-tour-active,
+body.is-tour-welcome {
   overflow: hidden;
+}
+
+body.is-tour-welcome .tour-welcome {
+  pointer-events: auto;
 }
 
 .tour-welcome {
@@ -1862,4 +1984,48 @@ body.is-tour-active {
   .tour-overlay {
     background: rgba(8, 14, 26, 0.55) !important;
   }
+}
+
+/* 一键教学演示：播放中锁定当前阶段面板，结束后自动恢复操控 */
+body.is-demo-playing .stage-panel-lab.is-stage-active {
+  pointer-events: none;
+  user-select: none;
+}
+
+body.is-demo-playing .stage-sidebar,
+body.is-demo-playing .app-topbar {
+  pointer-events: auto;
+}
+
+body.is-demo-playing .stage-sidebar #btnDemo {
+  pointer-events: auto;
+}
+
+.kin-hw-status {
+  margin: 0;
+  padding: 4px 2px 0;
+  font-size: 12px;
+  color: var(--text-muted, #5a6b7d);
+}
+
+body.is-tour-active .tour-root,
+body.is-tour-active .tour-welcome {
+  pointer-events: auto;
+}
+
+body.is-demo-playing::before {
+  content: "演示播放中…（Esc 或再次点击侧栏「停止演示」可中断）";
+  position: fixed;
+  top: 56px;
+  z-index: 7500;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f2942;
+  background: rgba(255, 236, 179, 0.96);
+  box-shadow: 0 4px 16px rgba(15, 41, 66, 0.12);
+  pointer-events: none;
 }

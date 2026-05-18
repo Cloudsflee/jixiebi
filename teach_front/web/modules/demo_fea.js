@@ -1,4 +1,6 @@
-﻿function toFinite(value, fallback = 0) {
+import { evaluateStructuralFea } from "./teaching_structural_model.js";
+
+function toFinite(value, fallback = 0) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
 }
@@ -115,7 +117,15 @@ function buildDiagnostics(byTarget, summary) {
   };
 }
 
-export function evaluatePseudoFea(modelInput = {}, input = {}) {
+export function evaluatePseudoFea(modelInput = {}, input = {}, ctx = {}) {
+  const material = ctx.material || modelInput._feaMaterial || {};
+  const energyWeights = ctx.energyWeights || modelInput._energyWeights || {};
+  const options = {
+    loadDirectionFactor: ctx.loadDirectionFactor ?? modelInput._loadDirectionFactor ?? 1
+  };
+  if (ctx.legacy !== true) {
+    return evaluateStructuralFea(modelInput, input, material, energyWeights, options);
+  }
   const model = normalizePseudoFeaModel(modelInput);
   const payloadNewton = Math.max(0, toFinite(input.payloadNewton, 0)) * model.payloadScale;
   const joints = input.jointDeg && typeof input.jointDeg === "object" ? input.jointDeg : {};

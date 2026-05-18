@@ -192,10 +192,6 @@ export function setKinematicsModeRuntime(app, mode) {
           : "Compare：对比目标点与 FK 结果误差，可切换候选解观察差异。";
   }
 
-  if (app.dom.btnStepRun) {
-    app.dom.btnStepRun.disabled = next === "fk";
-  }
-
   updatePrimaryCtaByMode(app);
 }
 
@@ -613,6 +609,20 @@ function updateFeaLegendState(app, hotspotLevel) {
   }
 }
 
+function maybeAppendOptimizationNarrative(app, text) {
+  const narrative = String(app.config?.energyCalibration?.optimizationNarrative || "").trim();
+  if (!narrative) return text;
+  const load = Number(app.fea?.load) || 0;
+  const showHint =
+    app.fea?.loadScenario === "limit" ||
+    load >= 80 ||
+    app.fea?.materialPreset === "lightweight";
+  if (!showHint || String(text || "").includes(narrative)) {
+    return text;
+  }
+  return `${text} ${narrative}`;
+}
+
 function updateFeaSectionContrib(app, sectionRank = []) {
   const rows = Array.isArray(sectionRank) ? sectionRank : [];
   if (app.dom.feaSectionRows) {
@@ -631,9 +641,12 @@ function updateFeaSectionContrib(app, sectionRank = []) {
 
   const peak = rows[0] || null;
   if (app.dom.feaRiskReason) {
-    app.dom.feaRiskReason.textContent = peak
-      ? `${safeText(String(peak.section).toUpperCase())} dominates. Stress ${formatNum(peak.stressMpa, 1)} MPa, disp ${formatNum(peak.deformationMm, 3)} mm.`
-      : "-";
+    const diag = app.feaTeachingState?.lastDiagnostics;
+    const baseReason = diag?.riskReason
+      || (peak
+        ? `${safeText(String(peak.section).toUpperCase())} 区段应力 ${formatNum(peak.stressMpa, 1)} MPa。`
+        : "-");
+    app.dom.feaRiskReason.textContent = maybeAppendOptimizationNarrative(app, baseReason);
   }
 }
 
@@ -832,6 +845,222 @@ export function refreshFeaTeachingUiRuntime(app) {
   updateFeaTeachingPanel(app, {});
 }
 
+function getFeaInputPresets(app) {
+  return app.config?.feaInputPresets || {};
+}
+
+function findMaterialPreset(presets, id) {
+  const list = Array.isArray(presets?.materialPresets) ? presets.materialPresets : [];
+  return list.find((p) => p.id === id) || list[0] || null;
+}
+
+function findLoadDirection(presets, id) {
+  const list = Array.isArray(presets?.loadDirections) ? presets.loadDirections : [];
+  return list.find((d) => d.id === id) || list[0] || null;
+}
+
+function findLoadScenario(presets, id) {
+  const list = Array.isArray(presets?.loadScenarios) ? presets.loadScenarios : [];
+  return list.find((s) => s.id === id) || null;
+}
+
+export function buildFeaAnalysisContextRuntime(app) {
+  const presets = getFeaInputPresets(app);
+  const matPreset = findMaterialPreset(presets, app.fea?.materialPreset || "al6061");
+  const dir = findLoadDirection(presets, app.fea?.loadDirection || "gravity");
+  const baseMat = app.config?.feaMaterial || {};
+  const material = {
+    ...baseMat,
+    yieldStressMpa: matPreset?.yieldStressMpa ?? baseMat.yieldStressMpa,
+    sectionModulusScale: matPreset?.sectionModulusScale ?? baseMat.sectionModulusScale ?? 1
+  };
+  return {
+    material,
+    energyWeights: app.config?.energyCalibration?.sectionLoadWeights || {},
+    loadDirectionFactor: Number(dir?.momentFactor) || 1,
+    materialPresetId: matPreset?.id || "al6061",
+    loadDirectionId: dir?.id || "gravity"
+  };
+}
+
+export function updateFeaPoseSummaryRuntime(app) {
+  if (!app.dom.feaPoseSummary) return;
+  const j2 = Number(app.jointAngles?.J2 || 0);
+  const j3 = Number(app.jointAngles?.J3 || 0);
+  const j4 = Number(app.jointAngles?.J4 || 0);
+  const src = app.fea?.poseSource || "lesson:0";
+  const presets = getFeaInputPresets(app);
+  const poseList = Array.isArray(presets.poseSources) ? presets.poseSources : [];
+  const label = poseList.find((p) => p.id === src)?.label || src;
+  app.dom.feaPoseSummary.textContent =
+    `当前姿态（${label}）：J2=${j2.toFixed(1)}° J3=${j3.toFixed(1)}° J4=${j4.toFixed(1)}°`;
+}
+
+export function applyFeaPoseSourceRuntime(app, poseSource) {
+  const src = String(poseSource || "lesson:0");
+  app.fea.poseSource = src;
+  if (app.dom.feaPoseSource) {
+    app.dom.feaPoseSource.value = src;
+  }
+  if (src === "twin") {
+    updateFeaPoseSummaryRuntime(app);
+    app.fea.enabled = true;
+    app.updateFeaVisual(performance.now());
+    if (typeof app.scheduleUiStateSave === "function") {
+      app.scheduleUiStateSave();
+    }
+    return;
+  }
+  const match = /^lesson:(\d+)$/.exec(src);
+  if (match) {
+    const idx = Number(match[1]);
+    if (Number.isFinite(idx)) {
+      app.applyLesson(idx, true);
+    }
+  }
+  updateFeaPoseSummaryRuntime(app);
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (typeof app.scheduleUiStateSave === "function") {
+    app.scheduleUiStateSave();
+  }
+}
+
+export function applyFeaLoadScenarioRuntime(app, scenarioId) {
+  const presets = getFeaInputPresets(app);
+  const scenario = findLoadScenario(presets, scenarioId);
+  if (!scenario) return;
+  app.fea.loadScenario = scenario.id;
+  app.fea.load = Number(scenario.loadPercent);
+  if (app.dom.feaLoad) app.dom.feaLoad.value = String(app.fea.load);
+  refreshFeaInputUiRuntime(app);
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (typeof app.scheduleUiStateSave === "function") {
+    app.scheduleUiStateSave();
+  }
+}
+
+export function setFeaLoadDirectionRuntime(app, directionId) {
+  app.fea.loadDirection = String(directionId || "gravity");
+  refreshFeaInputUiRuntime(app);
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (typeof app.scheduleUiStateSave === "function") {
+    app.scheduleUiStateSave();
+  }
+}
+
+export function setFeaMaterialPresetRuntime(app, presetId) {
+  app.fea.materialPreset = String(presetId || "al6061");
+  if (app.dom.feaMaterialPreset) {
+    app.dom.feaMaterialPreset.value = app.fea.materialPreset;
+  }
+  refreshFeaInputUiRuntime(app);
+  app.fea.enabled = true;
+  app.updateFeaVisual(performance.now());
+  if (typeof app.scheduleUiStateSave === "function") {
+    app.scheduleUiStateSave();
+  }
+}
+
+export function applyFeaLabCaseInputsRuntime(app, labCase) {
+  if (!labCase) return;
+  if (labCase.poseSource) {
+    applyFeaPoseSourceRuntime(app, labCase.poseSource);
+  } else if (Number.isFinite(labCase.lessonIndex)) {
+    applyFeaPoseSourceRuntime(app, `lesson:${labCase.lessonIndex}`);
+  }
+  if (labCase.loadDirection) {
+    setFeaLoadDirectionRuntime(app, labCase.loadDirection);
+  }
+  if (labCase.materialPreset) {
+    setFeaMaterialPresetRuntime(app, labCase.materialPreset);
+  }
+  if (labCase.loadScenario) {
+    applyFeaLoadScenarioRuntime(app, labCase.loadScenario);
+  } else if (Number.isFinite(labCase.loadPercent)) {
+    app.fea.load = Number(labCase.loadPercent);
+    if (app.dom.feaLoad) app.dom.feaLoad.value = String(app.fea.load);
+  }
+  if (Number.isFinite(labCase.exaggeration)) {
+    app.fea.exaggeration = Number(labCase.exaggeration);
+    if (app.dom.feaExaggeration) app.dom.feaExaggeration.value = String(app.fea.exaggeration);
+  }
+  refreshFeaInputUiRuntime(app);
+}
+
+export function buildFeaInputControlsRuntime(app) {
+  const presets = getFeaInputPresets(app);
+
+  if (app.dom.feaPoseSource) {
+    const poses = Array.isArray(presets.poseSources) ? presets.poseSources : [];
+    app.dom.feaPoseSource.innerHTML = poses.map((p) =>
+      `<option value="${safeText(p.id)}">${safeText(p.label)}</option>`
+    ).join("");
+    app.dom.feaPoseSource.value = app.fea.poseSource || "lesson:0";
+  }
+
+  if (app.dom.feaLoadScenarioRow) {
+    const scenarios = Array.isArray(presets.loadScenarios) ? presets.loadScenarios : [];
+    app.dom.feaLoadScenarioRow.innerHTML = scenarios.map((s) =>
+      `<button type="button" class="btn fea-preset-btn${app.fea.loadScenario === s.id ? " is-active" : ""}" data-fea-scenario="${safeText(s.id)}" title="${safeText(s.hint || "")}">${safeText(s.label)}</button>`
+    ).join("");
+    app.dom.feaLoadScenarioRow.querySelectorAll("[data-fea-scenario]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyFeaLoadScenarioRuntime(app, btn.getAttribute("data-fea-scenario"));
+      });
+    });
+  }
+
+  if (app.dom.feaLoadDirectionRow) {
+    const dirs = Array.isArray(presets.loadDirections) ? presets.loadDirections : [];
+    app.dom.feaLoadDirectionRow.innerHTML = dirs.map((d) =>
+      `<button type="button" class="fea-seg-btn${app.fea.loadDirection === d.id ? " is-active" : ""}" data-fea-direction="${safeText(d.id)}" aria-pressed="${app.fea.loadDirection === d.id ? "true" : "false"}">${safeText(d.label)}</button>`
+    ).join("");
+    app.dom.feaLoadDirectionRow.querySelectorAll("[data-fea-direction]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        setFeaLoadDirectionRuntime(app, btn.getAttribute("data-fea-direction"));
+      });
+    });
+  }
+
+  if (app.dom.feaMaterialPreset) {
+    const mats = Array.isArray(presets.materialPresets) ? presets.materialPresets : [];
+    app.dom.feaMaterialPreset.innerHTML = mats.map((m) =>
+      `<option value="${safeText(m.id)}">${safeText(m.label)}</option>`
+    ).join("");
+    app.dom.feaMaterialPreset.value = app.fea.materialPreset || "al6061";
+  }
+}
+
+export function refreshFeaInputUiRuntime(app) {
+  app.feaTeachingState.analysisContext = buildFeaAnalysisContextRuntime(app);
+  if (typeof app.resolveDemoFeaModel === "function") {
+    app.demoFeaModel = app.resolveDemoFeaModel();
+  }
+  if (app.dom.feaLoadScenarioRow) {
+    const scenarios = Array.isArray(getFeaInputPresets(app).loadScenarios)
+      ? getFeaInputPresets(app).loadScenarios
+      : [];
+    app.dom.feaLoadScenarioRow.querySelectorAll("[data-fea-scenario]").forEach((btn) => {
+      const id = btn.getAttribute("data-fea-scenario");
+      const active = id === app.fea.loadScenario;
+      btn.classList.toggle("is-active", active);
+    });
+  }
+  if (app.dom.feaLoadDirectionRow) {
+    app.dom.feaLoadDirectionRow.querySelectorAll("[data-fea-direction]").forEach((btn) => {
+      const id = btn.getAttribute("data-fea-direction");
+      const active = id === app.fea.loadDirection;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  updateFeaPoseSummaryRuntime(app);
+  refreshFeaTextsRuntime(app);
+}
+
 export function refreshFeaTextsRuntime(app) {
   if (app.dom.feaLoadText) {
     app.dom.feaLoadText.textContent = `${app.fea.load}%`;
@@ -873,6 +1102,7 @@ export function toggleFeaAnimationRuntime(app) {
 
 export function updateFeaVisualRuntimeFacade(app, nowMs, deps) {
   const { updateFeaVisualRuntimeCore, drawFeaChartCore } = deps;
+  app.feaTeachingState.analysisContext = buildFeaAnalysisContextRuntime(app);
   const result = updateFeaVisualRuntimeCore({
     nowMs,
     fea: app.fea,
@@ -943,23 +1173,27 @@ export function prepareKinematicsTourFromLessonRuntime(app, lessonIndex = 2, dep
 }
 
 export function runKinematicsTeachingSequenceRuntime(app) {
+  const caseId = app.config?.labDefaults?.defaultKinLabCase || "K3";
+  if (typeof app.runCaseDemo === "function") {
+    return app.runCaseDemo(caseId, "kin");
+  }
   const order = ["input", "reachable", "solve"];
   for (const step of order) {
     app.setKinematicsStep(step);
   }
-  const explainMap = {
-    input: "步骤 1：已确认目标点。",
-    reachable: "步骤 2：检查目标是否在可达工作空间内。",
-    solve: "步骤 3：准备执行逆解并应用关节角。"
-  };
   if (app.dom.kinExplainText) {
-    app.dom.kinExplainText.textContent = explainMap.solve;
+    app.dom.kinExplainText.textContent = "步骤 3：准备执行逆解并应用关节角。";
   }
 }
 
 export function runFeaTeachingSequenceRuntime(app, lessonIndex = 3) {
+  void lessonIndex;
+  const caseId = app.config?.labDefaults?.defaultFeaLabCase || "F3";
+  if (typeof app.runCaseDemo === "function") {
+    return app.runCaseDemo(caseId, "fea");
+  }
   app.setTeachingStage("fea");
-  app.applyLesson(lessonIndex, true);
+  app.applyLesson(3, true);
   app.feaTeachingState.step = "setup";
   updateFeaStepperUi(app);
   setFeaNarrative(app, {

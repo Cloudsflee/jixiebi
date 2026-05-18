@@ -7,6 +7,7 @@ import {
 import { toFiniteNumber } from "./app_math.js";
 
 export const TOUR_COMPLETED_KEY = "teach_front_tour_completed_v1";
+export const TOUR_WELCOME_SKIP_SESSION_KEY = "teach_front_welcome_skip_session";
 
 function nudgeJointForTour(app, jointName, deltaDeg) {
   const name = String(jointName || "");
@@ -228,6 +229,8 @@ function buildActionRegistry(app) {
     applyLesson1: () => app.applyLesson(1, true),
     prepareKinL3: () => prepareKinematicsTourFromLessonRuntime(app, 2, { toFiniteNumber }),
     kinFlowToSolve: () => runKinematicsTeachingSequenceRuntime(app),
+    runCaseDemoKin: (id) => app.runCaseDemo(id || app.config?.labDefaults?.defaultKinLabCase || "K3", "kin"),
+    runCaseDemoFea: (id) => app.runCaseDemo(id || app.config?.labDefaults?.defaultFeaLabCase || "F3", "fea"),
     solveIk: () => app.solveIkFromUi(),
     reverseCheck: () => app.reverseCheck(),
     feaL4: () => runFeaTeachingSequenceRuntime(app, 3),
@@ -377,7 +380,7 @@ export class TourGuideRuntime {
       this.hideWelcome();
       this.startTour({ fromWelcome: true });
     });
-    host.querySelector("[data-tour-welcome-later]")?.addEventListener("click", () => this.hideWelcome());
+    host.querySelector("[data-tour-welcome-later]")?.addEventListener("click", () => this.dismissWelcome());
     this.btnPrev?.addEventListener("click", () => this.prevStep());
     this.btnNext?.addEventListener("click", () => this.nextStep());
     this.btnSkip?.addEventListener("click", () => this.confirmStop());
@@ -399,16 +402,41 @@ export class TourGuideRuntime {
     }
   }
 
+  isWelcomeSkippedThisSession() {
+    try {
+      return sessionStorage.getItem(TOUR_WELCOME_SKIP_SESSION_KEY) === "1";
+    } catch (_err) {
+      return false;
+    }
+  }
+
   showWelcomeIfNeeded() {
-    if (this.isCompleted() || !this.welcomeEl) {
+    if (!this.root || !this.welcomeEl) {
+      this.mount();
+    }
+    if (!this.welcomeEl) {
+      return;
+    }
+    if (this.isCompleted() || this.isWelcomeSkippedThisSession() || this.active) {
       return;
     }
     this.welcomeEl.hidden = false;
     this.root.hidden = false;
     this.root.setAttribute("aria-hidden", "false");
+    document.body.classList.add("is-tour-welcome");
+  }
+
+  dismissWelcome() {
+    try {
+      sessionStorage.setItem(TOUR_WELCOME_SKIP_SESSION_KEY, "1");
+    } catch (_err) {
+      // ignore
+    }
+    this.hideWelcome();
   }
 
   hideWelcome() {
+    document.body.classList.remove("is-tour-welcome");
     if (this.welcomeEl) {
       this.welcomeEl.hidden = true;
     }
@@ -547,7 +575,7 @@ export class TourGuideRuntime {
       return;
     }
     await delay(Number(step.actionDelay) || 0);
-    fn();
+    await Promise.resolve(fn());
     await delay(120);
   }
 
@@ -616,6 +644,8 @@ export class TourGuideRuntime {
         }
       }
     }
+
+    this.cardEl.classList.remove("tour-card--docked");
 
     if (!rect || step.placement === "center" || !step.target) {
       this.holeEl.style.display = "none";

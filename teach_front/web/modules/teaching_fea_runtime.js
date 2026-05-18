@@ -1,4 +1,4 @@
-﻿import { clamp } from "./app_math.js";
+import { clamp } from "./app_math.js";
 import { evaluatePseudoFea } from "./demo_fea.js";
 
 function toneFromRatio(ratio) {
@@ -203,6 +203,7 @@ export function updateFeaVisualRuntime({
   const exScale = deformStyle === "real" ? 0.42 : 1.0;
   const ex = exaggerationBase * exScale;
   const payloadNewton = Math.max(0, loadFactor) * 12;
+  const feaCtx = feaTeachingState?.analysisContext || {};
 
   const feaResult = evaluatePseudoFea(demoFeaModel, {
     payloadNewton,
@@ -212,6 +213,10 @@ export function updateFeaVisualRuntime({
       j3: Number(jointAngles?.J3 || 0),
       j4: Number(jointAngles?.J4 || 0)
     }
+  }, {
+    material: feaCtx.material || demoFeaModel?._feaMaterial || {},
+    energyWeights: feaCtx.energyWeights || demoFeaModel?._energyWeights || {},
+    loadDirectionFactor: feaCtx.loadDirectionFactor ?? 1
   });
 
   const peakSection = String(feaResult?.diagnostics?.peakSection || "j2");

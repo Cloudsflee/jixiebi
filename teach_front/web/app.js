@@ -40,12 +40,29 @@ import {
   toggleAutoLessonRuntime
 } from "./modules/runtime_teaching_control.js";
 import {
+  initHardwareBridgeRuntime,
+  readHardwareJointsRuntime,
+  syncTwinToHardwareRuntime
+} from "./modules/runtime_hardware_bridge.js";
+import {
+  runCaseDemoRuntime,
+  setDemoPlayingRuntime,
+  stopCaseDemoRuntime
+} from "./modules/runtime_lab_demo.js";
+import {
   focusFeaRiskSectionRuntime,
   getKinematicsTargetFromUiRuntime,
   projectTargetToReachableRuntime,
   refreshFeaTeachingUiRuntime,
   refreshKinematicsTeachingUiRuntime,
   refreshFeaTextsRuntime,
+  refreshFeaInputUiRuntime,
+  buildFeaInputControlsRuntime,
+  applyFeaPoseSourceRuntime,
+  applyFeaLoadScenarioRuntime,
+  setFeaLoadDirectionRuntime,
+  setFeaMaterialPresetRuntime,
+  applyFeaLabCaseInputsRuntime,
   replayFeaHistoryMarkRuntime,
   reverseCheckRuntime,
   runFeaRuntime,
@@ -73,8 +90,8 @@ import {
   syncCalibrationInputsRuntime,
   writeSelectedJointRuntime
 } from "./modules/runtime_calibration.js";
-const TEACH_WEB_VERSION = "20260519-tour-guide";
-const TOUR_MODULE_URL = `./modules/runtime_tour_guide.js?v=20260519-tour-follow2`;
+const TEACH_WEB_VERSION = "20260519-fea-inputs";
+const TOUR_MODULE_URL = `./modules/runtime_tour_guide.js?v=20260519-tour-restore`;
 const UI_STATE_STORAGE_KEY = "teach_front_ui_state_v1";
 const GATEWAY_URL_KEY = "teach_front_gateway_url";
 const ENTRY_MODE_KEY = "teach_front_entry_mode";
@@ -156,6 +173,10 @@ class TeachingDemoApp {
       running: true,
       load: 50,
       exaggeration: 120,
+      poseSource: "lesson:0",
+      loadScenario: "rated",
+      loadDirection: "gravity",
+      materialPreset: "al6061",
       maxStress: 0,
       maxDisp: 0,
       safetyFactor: 0,
@@ -185,11 +206,16 @@ class TeachingDemoApp {
     this.gatewayCheckToken = 0;
     this.tour = null;
     this.tourSuppressUiSave = false;
+    this.isDemoPlaying = false;
+    this.labDemoAbort = { stopped: false };
+    this.hardwareJoints = {};
 
     this.dom = {};
   }
 
   async init() {
+    document.body.classList.remove("is-demo-playing");
+    this.isDemoPlaying = false;
     this.cacheDom();
     this.initialUiState = this.loadUiState();
     this.bindStaticUi();
@@ -206,6 +232,7 @@ class TeachingDemoApp {
     this.refreshFeaTexts();
     this.refreshKinematicsTeachingUi();
     this.refreshFeaTeachingUi();
+    initHardwareBridgeRuntime(this);
     this.checkGatewayStatus(false);
     drawFeaChartCore(this.dom.chart, this.feaHistory, this.feaTeachingState.selectedHistoryIndex);
     const restored = this.restoreUiState();
@@ -225,7 +252,25 @@ class TeachingDemoApp {
       const mod = await import(TOUR_MODULE_URL);
       this.tour = mod.initTourGuideRuntime(this);
       await this.tour.loadScript();
+      try {
+        const bundleKey = "teach_front_tour_bundle_v";
+        const bundleVer = "20260519-tour-restore";
+        if (localStorage.getItem(bundleKey) !== bundleVer) {
+          localStorage.removeItem(mod.TOUR_COMPLETED_KEY);
+          try {
+            sessionStorage.removeItem(mod.TOUR_WELCOME_SKIP_SESSION_KEY);
+          } catch (_err2) {
+            // ignore
+          }
+          localStorage.setItem(bundleKey, bundleVer);
+        }
+      } catch (_err) {
+        // ignore
+      }
       this.tour.showWelcomeIfNeeded();
+      requestAnimationFrame(() => {
+        this.tour?.showWelcomeIfNeeded?.();
+      });
     } catch (err) {
       this.log(`教学引导模块加载失败: ${err?.message || err}`);
       // eslint-disable-next-line no-console
@@ -311,7 +356,15 @@ class TeachingDemoApp {
     this.dom.kinDiagSingularity = byId("kinDiagSingularity");
     this.dom.kinDiagErrVec = byId("kinDiagErrVec");
     this.dom.kinReasonText = byId("kinReasonText");
+    this.dom.btnSyncHw = byId("btnSyncHw");
+    this.dom.btnReadHw = byId("btnReadHw");
+    this.dom.kinHwStatus = byId("kinHwStatus");
 
+    this.dom.feaPoseSource = byId("feaPoseSource");
+    this.dom.feaPoseSummary = byId("feaPoseSummary");
+    this.dom.feaLoadScenarioRow = byId("feaLoadScenarioRow");
+    this.dom.feaLoadDirectionRow = byId("feaLoadDirectionRow");
+    this.dom.feaMaterialPreset = byId("feaMaterialPreset");
     this.dom.feaLoad = byId("feaLoad");
     this.dom.feaLoadText = byId("feaLoadText");
     this.dom.feaExaggeration = byId("feaExaggeration");
@@ -365,6 +418,21 @@ class TeachingDemoApp {
       });
     });
     this.dom.btnDemo?.addEventListener("click", () => this.runOneClickDemo());
+    this.dom.btnSyncHw?.addEventListener("click", () => {
+      this.syncTwinToHardware().catch((err) => this.log(err?.message || err));
+    });
+    this.dom.btnReadHw?.addEventListener("click", () => {
+      this.readHardwareJoints().catch((err) => this.log(err?.message || err));
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape" || !this.isDemoPlaying) {
+        return;
+      }
+      if (this.tour?.active) {
+        return;
+      }
+      this.stopCaseDemo();
+    });
     this.dom.btnGatewayRecheck?.addEventListener("click", () => this.checkGatewayStatus(true));
     this.dom.btnGatewayBack?.addEventListener("click", () => this.goBackToGateway());
 
@@ -410,9 +478,21 @@ class TeachingDemoApp {
     this.dom.btnFeaDeformReal?.addEventListener("click", () => this.toggleFeaDeformStyle("real"));
     this.dom.btnFeaFocusRisk?.addEventListener("click", () => this.focusFeaRiskSection());
 
+    this.dom.feaPoseSource?.addEventListener("change", () => {
+      applyFeaPoseSourceRuntime(this, this.dom.feaPoseSource.value);
+    });
+    this.dom.feaMaterialPreset?.addEventListener("change", () => {
+      setFeaMaterialPresetRuntime(this, this.dom.feaMaterialPreset.value);
+    });
+
     this.dom.feaLoad?.addEventListener("input", () => {
       this.fea.load = Number(this.dom.feaLoad.value);
-      this.refreshFeaTexts();
+      const presets = this.config?.feaInputPresets?.loadScenarios || [];
+      const match = presets.find((s) => Number(s.loadPercent) === this.fea.load);
+      if (match) {
+        this.fea.loadScenario = match.id;
+      }
+      refreshFeaInputUiRuntime(this);
       this.fea.enabled = true;
       this.updateFeaVisual(performance.now());
       this.scheduleUiStateSave();
@@ -570,6 +650,8 @@ class TeachingDemoApp {
     }
     this.config = await res.json();
     this.demoFeaModel = this.resolveDemoFeaModel();
+    buildFeaInputControlsRuntime(this);
+    refreshFeaInputUiRuntime(this);
     this.log("Config loaded", {
       joints: Array.isArray(this.config?.joints) ? this.config.joints.length : 0,
       parts: Array.isArray(this.config?.parts) ? this.config.parts.length : 0
@@ -583,7 +665,7 @@ class TeachingDemoApp {
     const tool = toFiniteNumber(linkage?.toolMm, 70);
     const demoFeaRaw = this.config?.demoFea || {};
 
-    return normalizePseudoFeaModel({
+    const base = normalizePseudoFeaModel({
       ...DEFAULT_PSEUDO_FEA_MODEL,
       ...demoFeaRaw,
       sections: {
@@ -606,6 +688,21 @@ class TeachingDemoApp {
         }
       }
     });
+    const presets = this.config?.feaInputPresets || {};
+    const matId = this.fea?.materialPreset || "al6061";
+    const matList = Array.isArray(presets.materialPresets) ? presets.materialPresets : [];
+    const matPreset = matList.find((m) => m.id === matId) || matList[0] || {};
+    const dirId = this.fea?.loadDirection || "gravity";
+    const dirList = Array.isArray(presets.loadDirections) ? presets.loadDirections : [];
+    const dirPreset = dirList.find((d) => d.id === dirId) || dirList[0] || {};
+    base._feaMaterial = {
+      ...(this.config?.feaMaterial || {}),
+      yieldStressMpa: matPreset.yieldStressMpa ?? this.config?.feaMaterial?.yieldStressMpa,
+      sectionModulusScale: matPreset.sectionModulusScale ?? this.config?.feaMaterial?.sectionModulusScale
+    };
+    base._energyWeights = this.config?.energyCalibration?.sectionLoadWeights || {};
+    base._loadDirectionFactor = Number(dirPreset.momentFactor) || 1;
+    return base;
   }
 
   updateOriginText() {
@@ -704,6 +801,22 @@ class TeachingDemoApp {
     return runOneClickDemoRuntime(this);
   }
 
+  runCaseDemo(caseId, kind = "auto") {
+    return runCaseDemoRuntime(this, caseId, kind);
+  }
+
+  stopCaseDemo() {
+    return stopCaseDemoRuntime(this);
+  }
+
+  syncTwinToHardware() {
+    return syncTwinToHardwareRuntime(this);
+  }
+
+  readHardwareJoints() {
+    return readHardwareJointsRuntime(this);
+  }
+
   setJointAngle(name, value, options = {}) {
     const def = this.jointDefs.get(name);
     if (!def) {
@@ -739,6 +852,14 @@ class TeachingDemoApp {
 
     if (options.updateKinematics !== false) {
       this.updateKinematicsReadout({ step: "input" });
+    }
+
+    if (this.currentStage === "fea" && this.fea?.poseSource === "twin") {
+      this.refreshFeaInputUi();
+      if (options.applyNow !== false) {
+        this.fea.enabled = true;
+        this.updateFeaVisual(performance.now());
+      }
     }
 
     if (options.persist !== false) {
@@ -928,6 +1049,10 @@ class TeachingDemoApp {
     return refreshFeaTextsRuntime(this);
   }
 
+  refreshFeaInputUi() {
+    return refreshFeaInputUiRuntime(this);
+  }
+
   runFea() {
     const result = runFeaRuntime(this);
     this.scheduleUiStateSave();
@@ -1095,6 +1220,10 @@ class TeachingDemoApp {
           running: Boolean(this.fea.running),
           load: Number(this.fea.load),
           exaggeration: Number(this.fea.exaggeration),
+          poseSource: String(this.fea.poseSource || "lesson:0"),
+          loadScenario: String(this.fea.loadScenario || "rated"),
+          loadDirection: String(this.fea.loadDirection || "gravity"),
+          materialPreset: String(this.fea.materialPreset || "al6061"),
           teaching: {
             step: String(this.feaTeachingState?.step || "setup"),
             advancedExpanded: Boolean(this.feaTeachingState?.advancedExpanded),
@@ -1234,6 +1363,24 @@ class TeachingDemoApp {
           this.dom.feaExaggeration.value = String(exaggeration);
         }
       }
+      if (typeof state.fea.poseSource === "string") {
+        this.fea.poseSource = state.fea.poseSource;
+        if (this.dom.feaPoseSource) {
+          this.dom.feaPoseSource.value = state.fea.poseSource;
+        }
+      }
+      if (typeof state.fea.loadScenario === "string") {
+        this.fea.loadScenario = state.fea.loadScenario;
+      }
+      if (typeof state.fea.loadDirection === "string") {
+        this.fea.loadDirection = state.fea.loadDirection;
+      }
+      if (typeof state.fea.materialPreset === "string") {
+        this.fea.materialPreset = state.fea.materialPreset;
+        if (this.dom.feaMaterialPreset) {
+          this.dom.feaMaterialPreset.value = state.fea.materialPreset;
+        }
+      }
       if (typeof state.fea.enabled === "boolean") {
         this.fea.enabled = state.fea.enabled;
       }
@@ -1253,7 +1400,7 @@ class TeachingDemoApp {
       if (this.dom.btnPauseFea) {
         this.dom.btnPauseFea.textContent = this.fea.running ? "暂停形变动画" : "恢复形变动画";
       }
-      this.refreshFeaTexts();
+      this.refreshFeaInputUi();
       this.refreshFeaTeachingUi();
       if (this.fea.enabled) {
         this.updateFeaVisual(performance.now());

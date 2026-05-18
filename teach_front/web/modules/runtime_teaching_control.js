@@ -180,6 +180,33 @@ export function runControlLessonSequenceRuntime(app, indices, animate = true) {
 }
 
 export function runOneClickDemoRuntime(app) {
+  if (app.isDemoPlaying) {
+    if (typeof app.stopCaseDemo === "function") {
+      app.stopCaseDemo();
+    }
+    return;
+  }
+
+  const stage = app.currentStage === "kinematics" || app.currentStage === "fea"
+    ? app.currentStage
+    : "control";
+
+  if (stage === "kinematics") {
+    const caseId = app.config?.labDefaults?.defaultKinLabCase || "K3";
+    if (typeof app.runCaseDemo === "function") {
+      return app.runCaseDemo(caseId, "kin");
+    }
+    return;
+  }
+
+  if (stage === "fea") {
+    const caseId = app.config?.labDefaults?.defaultFeaLabCase || "F3";
+    if (typeof app.runCaseDemo === "function") {
+      return app.runCaseDemo(caseId, "fea");
+    }
+    return;
+  }
+
   app.clearKinematicsDemoTimers();
   app.setTeachingStage("control");
   if (app.dom.modeText) {
@@ -234,5 +261,13 @@ export function setTeachingStageRuntime(app, stage) {
         : normalized === "kinematics"
           ? "正逆解实验阶段"
           : "有限元演示阶段";
+  }
+
+  if (normalized === "fea" && typeof app.refreshFeaInputUi === "function") {
+    app.refreshFeaInputUi();
+    if (app.fea?.poseSource === "twin") {
+      app.fea.enabled = true;
+      app.updateFeaVisual(performance.now());
+    }
   }
 }

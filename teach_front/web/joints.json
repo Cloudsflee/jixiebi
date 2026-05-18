@@ -361,6 +361,183 @@
       "speech": "施加高载荷并放大变形，突出应力集中与安全因子变化。"
     }
   ],
+  "labDefaults": {
+    "defaultKinLabCase": "K3",
+    "defaultFeaLabCase": "F3"
+  },
+  "gateway": {
+    "moveTimeMs": 900,
+    "commandScaleDeg": 10,
+    "jointServoIds": {
+      "J1": 1,
+      "J2": 2,
+      "J3": 3,
+      "J4": 4
+    }
+  },
+  "energyCalibration": {
+    "sectionLoadWeights": {
+      "j2": 0.33,
+      "j3": 0.27,
+      "j4": 0.17
+    },
+    "optimizationNarrative": "优化后大臂 J2 能耗约降 28%，载荷分布更均衡。"
+  },
+  "feaMaterial": {
+    "yieldStressMpa": 210,
+    "youngModulusGpa": 69,
+    "sectionModulusScale": 1
+  },
+  "feaInputPresets": {
+    "loadScenarios": [
+      { "id": "light", "label": "轻载", "loadPercent": 20, "hint": "待机/准备阶段（仿真标定）" },
+      { "id": "rated", "label": "额定", "loadPercent": 55, "hint": "负载搬运阶段（仿真标定）" },
+      { "id": "limit", "label": "极限", "loadPercent": 86, "hint": "高负载/大姿态（仿真标定）" }
+    ],
+    "loadDirections": [
+      { "id": "gravity", "label": "重力主导", "momentFactor": 1.0 },
+      { "id": "lateral", "label": "侧向", "momentFactor": 1.12 },
+      { "id": "combined", "label": "组合", "momentFactor": 1.22 }
+    ],
+    "materialPresets": [
+      { "id": "al6061", "label": "6061 铝", "yieldStressMpa": 210, "sectionModulusScale": 1.0 },
+      { "id": "lightweight", "label": "轻质对比", "yieldStressMpa": 175, "sectionModulusScale": 0.92 }
+    ],
+    "poseSources": [
+      { "id": "lesson:0", "label": "L1 零位", "lessonIndex": 0 },
+      { "id": "lesson:1", "label": "L2 搬运", "lessonIndex": 1 },
+      { "id": "lesson:2", "label": "L3 目标", "lessonIndex": 2 },
+      { "id": "lesson:3", "label": "L4 极限", "lessonIndex": 3 },
+      { "id": "twin", "label": "当前孪生姿态", "lessonIndex": null }
+    ]
+  },
+  "kinLabCases": [
+    {
+      "id": "K1",
+      "title": "工作空间 IK",
+      "lessonIndex": 1,
+      "mode": "ik",
+      "target": { "x": 210, "y": 115, "z": 178 },
+      "demoScript": {
+        "pauseBetweenStepsMs": 850,
+        "steps": [
+          { "phase": "input", "narration": "载入 L2 目标点，准备逆解。", "action": "loadTarget" },
+          { "phase": "reachable", "narration": "检查目标是否在工作空间内。", "action": "checkReachable" },
+          { "phase": "solve", "narration": "执行逆解并驱动机械臂。", "action": "solveIk" },
+          { "phase": "validate", "narration": "反向验证末端误差。", "action": "validateFk" }
+        ]
+      }
+    },
+    {
+      "id": "K3",
+      "title": "肘上肘下对比",
+      "lessonIndex": 2,
+      "mode": "ik",
+      "target": { "x": 195, "y": -62, "z": 205 },
+      "demoScript": {
+        "pauseBetweenStepsMs": 950,
+        "steps": [
+          { "phase": "input", "narration": "载入 L3 目标点。", "action": "loadTarget" },
+          { "phase": "reachable", "narration": "判定可达性与边界裕量。", "action": "checkReachable" },
+          { "phase": "solve", "narration": "应用推荐候选解。", "action": "solveIk" },
+          { "phase": "solve", "narration": "切换第二组候选解对比姿态。", "action": "switchSecondCandidate" },
+          { "phase": "validate", "narration": "反向验证合成误差。", "action": "validateFk" }
+        ]
+      }
+    },
+    {
+      "id": "K4",
+      "title": "正解验证",
+      "lessonIndex": 0,
+      "mode": "fk",
+      "demoScript": {
+        "pauseBetweenStepsMs": 800,
+        "steps": [
+          { "phase": "input", "narration": "载入零位关节角。", "action": "loadLessonAngles" },
+          { "phase": "solve", "narration": "由关节角计算末端位置。", "action": "solveFk" },
+          { "phase": "validate", "narration": "对照目标点验证误差。", "action": "validateFk" }
+        ]
+      }
+    },
+    {
+      "id": "K5",
+      "title": "不可达与投影",
+      "mode": "ik",
+      "target": { "x": 420, "y": 0, "z": 300 },
+      "demoScript": {
+        "pauseBetweenStepsMs": 900,
+        "steps": [
+          { "phase": "input", "narration": "设置明显不可达目标。", "action": "loadTarget" },
+          { "phase": "reachable", "narration": "观察不可达判定与提示。", "action": "checkReachable" },
+          { "phase": "solve", "narration": "投影到最近可达点。", "action": "projectReachable" },
+          { "phase": "solve", "narration": "对投影点执行逆解。", "action": "solveIk" }
+        ]
+      }
+    }
+  ],
+  "feaLabCases": [
+    {
+      "id": "F1",
+      "title": "轻载观察",
+      "lessonIndex": 0,
+      "poseSource": "lesson:0",
+      "loadScenario": "light",
+      "loadDirection": "gravity",
+      "materialPreset": "al6061",
+      "loadPercent": 20,
+      "exaggeration": 110,
+      "demoScript": {
+        "pauseBetweenStepsMs": 850,
+        "steps": [
+          { "phase": "setup", "narration": "载入 L1 轻载姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "设置 20% 演示载荷。", "action": "setLoad" },
+          { "phase": "compute", "narration": "计算应力与位移场。", "action": "runAnalysis" },
+          { "phase": "explain", "narration": "轻载下各杆段应力较低。", "action": "explainHotspot" }
+        ]
+      }
+    },
+    {
+      "id": "F2",
+      "title": "额定搬运",
+      "lessonIndex": 1,
+      "poseSource": "lesson:1",
+      "loadScenario": "rated",
+      "loadDirection": "combined",
+      "materialPreset": "al6061",
+      "loadPercent": 55,
+      "exaggeration": 130,
+      "demoScript": {
+        "pauseBetweenStepsMs": 900,
+        "steps": [
+          { "phase": "setup", "narration": "载入 L2 额定搬运姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "设置 55% 额定载荷与组合受力。", "action": "setLoad" },
+          { "phase": "compute", "narration": "计算应力与位移场。", "action": "runAnalysis" },
+          { "phase": "explain", "narration": "额定工况下 J2 仍为主要承载杆段。", "action": "explainHotspot" }
+        ]
+      }
+    },
+    {
+      "id": "F3",
+      "title": "极限工况",
+      "lessonIndex": 3,
+      "poseSource": "lesson:3",
+      "loadScenario": "limit",
+      "loadDirection": "gravity",
+      "materialPreset": "al6061",
+      "loadPercent": 86,
+      "exaggeration": 165,
+      "demoScript": {
+        "pauseBetweenStepsMs": 950,
+        "steps": [
+          { "phase": "setup", "narration": "载入 L4 高载荷姿态。", "action": "loadPose" },
+          { "phase": "setup", "narration": "设置 86% 极限载荷。", "action": "setLoad" },
+          { "phase": "compute", "narration": "运行简化结构力学分析。", "action": "runAnalysis" },
+          { "phase": "observe", "narration": "观察 J2/J3 热点与风险等级。", "action": "observeHotspot" },
+          { "phase": "explain", "narration": "大臂承担主要弯矩，与能耗占比一致。", "action": "explainHotspot" }
+        ]
+      }
+    }
+  ],
   "urdfModel": {
     "source": "SuArmT/urdf/SuArmT.urdf",
     "csv": "SuArmT/urdf/SuArmT.csv",

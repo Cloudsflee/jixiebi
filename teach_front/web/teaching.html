@@ -13,6 +13,39 @@
     <link rel="stylesheet" href="./styles-teaching.css?v=20260518-style-split1" />
   </head>
   <body class="teach-page">
+    <script>
+      (function enforceGatewayEntry() {
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          var entry = params.get("entry");
+          var isAllowedEntry = entry === "connected" || entry === "skip";
+          var mode = sessionStorage.getItem("teach_front_entry_mode");
+          var tsRaw = sessionStorage.getItem("teach_front_entry_ts");
+          var ts = Number(tsRaw);
+          var ttlMs = 10 * 60 * 1000;
+          var fresh = Number.isFinite(ts) && (Date.now() - ts >= 0) && (Date.now() - ts <= ttlMs);
+          if (!isAllowedEntry || mode !== entry || !fresh) {
+            window.location.replace("./index.html");
+          }
+        } catch (_err) {
+          window.location.replace("./index.html");
+        }
+      })();
+    </script>
+    <script>
+      (function applyEarlySidebarState() {
+        try {
+          var raw = localStorage.getItem("teach_front_ui_state_v1");
+          if (!raw) return;
+          var state = JSON.parse(raw);
+          if (state && state.sidebarCollapsed === true) {
+            document.body.classList.add("is-sidebar-collapsed");
+          }
+        } catch (_err) {
+          // ignore
+        }
+      })();
+    </script>
     <div class="app-shell teach-shell">
       <div class="teach-frame">
         <aside class="stage-nav-panel stage-sidebar">
@@ -52,6 +85,20 @@
         </aside>
 
       <main class="app-main stage-workspace">
+        <section class="panel link-status-panel" aria-live="polite">
+          <div class="link-status-main">
+            <span id="gatewayStatusBadge" class="gate-status">检测中</span>
+            <div class="link-status-texts">
+              <strong id="gatewayStatusText">正在检测网关连接状态...</strong>
+              <p id="gatewayStatusMeta">网关地址: --</p>
+            </div>
+          </div>
+          <div class="inline-actions link-status-actions">
+            <button id="btnGatewayRecheck" class="btn" type="button">重新检测</button>
+            <button id="btnGatewayBack" class="btn ghost-btn" type="button">返回连接页</button>
+          </div>
+        </section>
+
         <section class="panel viewport-panel viewport-panel-wide">
           <div id="viewport"></div>
           <div class="hud">
@@ -151,26 +198,33 @@
           <section class="kin-lab">
             <header class="lab-topbar">
               <div class="lab-title">
-                <h2>运动学实验台（FK / IK）</h2>
-                <p>输入 -> 求解 -> 验证，观察目标点与末端结果之间的关系。</p>
+                <h2>Kinematics Lab (FK / IK)</h2>
+                <p>Input -> Solve -> Validate. Compare the target point and FK end-effector output.</p>
               </div>
               <div class="lab-toolbar">
                 <div class="kin-mode-switch">
-                  <button id="kinModeIK" class="btn mode-btn is-mode-active" type="button">逆解 IK</button>
-                  <button id="kinModeFK" class="btn mode-btn" type="button">正解 FK</button>
-                  <button id="kinModeCompare" class="btn mode-btn" type="button">对比模式</button>
+                  <button id="kinModeIK" class="btn mode-btn is-mode-active" type="button">IK Mode</button>
+                  <button id="kinModeFK" class="btn mode-btn" type="button">FK Mode</button>
+                  <button id="kinModeCompare" class="btn mode-btn" type="button">Compare</button>
                 </div>
                 <div class="inline-actions kin-actions">
-                  <button id="btnSolveIK" class="btn btn-strong">执行逆解</button>
-                  <button id="btnSolveFK" class="btn">计算正解</button>
-                  <button id="btnKineDemo" class="btn">路径演示</button>
+                  <button id="btnSolveIK" class="btn btn-strong" type="button">Solve IK</button>
+                  <button id="btnSolveFK" class="btn" type="button">Solve FK</button>
+                  <button id="btnReverseCheck" class="btn" type="button">Reverse Check</button>
+                  <button id="btnKineDemo" class="btn" type="button">Path Demo</button>
+                </div>
+                <div class="inline-actions kin-actions-secondary">
+                  <button id="btnStepPrev" class="btn" type="button">Prev Step</button>
+                  <button id="btnStepRun" class="btn" type="button">Next Step</button>
+                  <button id="btnProjectReachable" class="btn" type="button" disabled>Project Reachable</button>
+                  <button id="btnToggleKinAdvanced" class="btn ghost-btn" type="button">Show Advanced</button>
                 </div>
               </div>
             </header>
 
             <div class="kin-main-grid">
               <section class="kin-col kin-input-col">
-                <p class="kin-subtitle">输入区：目标点（robot local）</p>
+                <p class="kin-subtitle">Input Area: Target Point (robot local)</p>
                 <div class="ik-grid">
                   <label>
                     X (mm)
@@ -185,38 +239,78 @@
                     <input id="ikZ" type="number" step="1" value="180" />
                   </label>
                 </div>
-                <p id="kinInputHint" class="kin-hint">IK: 输入目标点，点击“执行逆解”生成关节角。</p>
+                <p id="kinInputHint" class="kin-hint">IK: input target point, then solve to generate joint angles.</p>
               </section>
 
               <section class="kin-col kin-step-col">
-                <p class="kin-subtitle">求解流程</p>
+                <p class="kin-subtitle">Solve Flow</p>
                 <ol id="kinSteps" class="kin-steps">
-                  <li data-step="input">1. 输入目标点 / 当前关节角</li>
-                  <li data-step="reachable">2. 可达性判定</li>
-                  <li data-step="solve">3. 求解并应用角度</li>
-                  <li data-step="validate">4. 对比末端误差</li>
+                  <li data-step="input">1. Input target / current joint angles</li>
+                  <li data-step="reachable">2. Reachability check</li>
+                  <li data-step="solve">3. Solve and apply angles</li>
+                  <li data-step="validate">4. Validate end-effector error</li>
                 </ol>
+                <div class="kin-explain-card">
+                  <p class="kin-explain-title">Step Explain</p>
+                  <p id="kinExplainText" class="kin-explain-text">Step 1: input target point or confirm current joint angles.</p>
+                </div>
+                <div class="kin-candidate-card">
+                  <p class="kin-explain-title">Candidate Solutions (Elbow Up / Down)</p>
+                  <div id="kinCandidateList" class="kin-candidate-list"></div>
+                </div>
               </section>
 
               <section class="kin-col kin-result-col">
-                <p class="kin-subtitle">结果区</p>
+                <p class="kin-subtitle">Results</p>
                 <div class="kin-metric-grid">
                   <div class="kin-metric-card">
-                    <span>可达性</span>
+                    <span>Reachability</span>
                     <strong id="kinReachable" class="kin-chip">-</strong>
                   </div>
                   <div class="kin-metric-card">
-                    <span>末端误差</span>
+                    <span>End Error</span>
                     <strong id="kinError" class="kin-chip">-</strong>
                   </div>
                   <div class="kin-metric-card">
-                    <span>限位裁剪</span>
+                    <span>Joint Clip</span>
                     <strong id="kinClip" class="kin-chip">-</strong>
                   </div>
                 </div>
-                <p id="ikStatus" class="status-line">等待求解</p>
+                <div class="kin-basis-grid">
+                  <div class="kin-basis-item">
+                    <span>Limit Margin</span>
+                    <strong id="kinBasisLimitMargin">-</strong>
+                  </div>
+                  <div class="kin-basis-item">
+                    <span>Error Score</span>
+                    <strong id="kinBasisError">-</strong>
+                  </div>
+                  <div class="kin-basis-item">
+                    <span>Smoothness Cost</span>
+                    <strong id="kinBasisSmoothness">-</strong>
+                  </div>
+                </div>
+                <p id="ikStatus" class="status-line">Waiting for solve.</p>
+                <p id="kinReverseStatus" class="status-line status-line-sub">Reverse check not run yet.</p>
               </section>
             </div>
+
+            <section id="kinAdvancedPanel" class="kin-advanced-panel" hidden>
+              <div class="kin-advanced-grid">
+                <div class="kin-advanced-card">
+                  <p class="kin-explain-title">Advanced Diagnostics: Geometry & Reachability</p>
+                  <ul class="kin-diag-list">
+                    <li>Reach level: <strong id="kinDiagReachability">-</strong></li>
+                    <li>Boundary margin: <strong id="kinDiagMargin">-</strong></li>
+                    <li>Planar radius r: <strong id="kinDiagPlanarR">-</strong></li>
+                    <li>Z offset (z-base): <strong id="kinDiagZOffset">-</strong></li>
+                    <li>Near singularity: <strong id="kinDiagSingularity">-</strong></li>
+                    <li>Error vector: <strong id="kinDiagErrVec">-</strong></li>
+                  </ul>
+                  <p class="kin-diag-reason">Notes: <span id="kinReasonText">-</span></p>
+                </div>
+              </div>
+            </section>
           </section>
         </article>
 

@@ -184,8 +184,14 @@ export async function buildRobotRuntime(app, deps) {
 
   app.alignRobotFrameByJ1AndFront();
   app.applyJointAngles();
-  app.fitCameraToRobot();
-  requestAnimationFrame(() => app.fitCameraToRobot());
+  if (!app.hasRestoredCameraState) {
+    app.fitCameraToRobot();
+    requestAnimationFrame(() => {
+      if (!app.hasRestoredCameraState) {
+        app.fitCameraToRobot();
+      }
+    });
+  }
 }
 
 export function normalizeMeshNameRuntime(name) {

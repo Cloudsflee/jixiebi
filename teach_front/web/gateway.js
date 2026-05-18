@@ -1,4 +1,6 @@
 ﻿const GATEWAY_URL_KEY = "teach_front_gateway_url";
+const ENTRY_MODE_KEY = "teach_front_entry_mode";
+const ENTRY_TS_KEY = "teach_front_entry_ts";
 
 const dom = {
   wsUrl: document.getElementById("armWsUrl"),
@@ -52,12 +54,22 @@ function syncButtons() {
 }
 
 function persistUrl(url) {
-  try { sessionStorage.setItem(GATEWAY_URL_KEY, url); } catch {}
+  try {
+    sessionStorage.setItem(GATEWAY_URL_KEY, url);
+  } catch {}
+}
+
+function markEntry(mode) {
+  try {
+    sessionStorage.setItem(ENTRY_MODE_KEY, String(mode || ""));
+    sessionStorage.setItem(ENTRY_TS_KEY, String(Date.now()));
+  } catch {}
 }
 
 function enterTeaching(mode) {
   const url = String(dom.wsUrl?.value || "ws://127.0.0.1:8787").trim();
   persistUrl(url);
+  markEntry(mode);
   window.location.href = `./teaching.html?entry=${encodeURIComponent(mode)}`;
 }
 

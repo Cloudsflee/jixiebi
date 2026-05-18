@@ -41,15 +41,20 @@ import {
 } from "./modules/runtime_teaching_control.js";
 import {
   getKinematicsTargetFromUiRuntime,
+  projectTargetToReachableRuntime,
+  refreshKinematicsTeachingUiRuntime,
   refreshFeaTextsRuntime,
+  reverseCheckRuntime,
   runFeaRuntime,
   runKinematicsPathDemoRuntime,
+  runKinematicsStepRuntime,
   setKinematicsChipRuntime,
   setKinematicsModeRuntime,
   setKinematicsStepRuntime,
   solveFkToUiRuntime,
   solveIkFromUiRuntime,
   toggleFeaAnimationRuntime,
+  toggleKinematicsAdvancedRuntime,
   updateEefReadoutRuntime,
   updateFeaVisualRuntimeFacade,
   updateKinematicsReadoutRuntime
@@ -64,6 +69,37 @@ import {
 
 const TEACH_WEB_VERSION = "20260518-hotfix-model-visible";
 const UI_STATE_STORAGE_KEY = "teach_front_ui_state_v1";
+const GATEWAY_URL_KEY = "teach_front_gateway_url";
+const ENTRY_MODE_KEY = "teach_front_entry_mode";
+const ENTRY_TS_KEY = "teach_front_entry_ts";
+
+function verifyGatewayEntry() {
+  const params = new URLSearchParams(window.location.search || "");
+  const entry = params.get("entry");
+  const isAllowedEntry = entry === "connected" || entry === "skip";
+
+  let mode = "";
+  let ts = Number.NaN;
+  try {
+    mode = String(sessionStorage.getItem(ENTRY_MODE_KEY) || "");
+    ts = Number(sessionStorage.getItem(ENTRY_TS_KEY));
+  } catch (_err) {
+    mode = "";
+    ts = Number.NaN;
+  }
+
+  const ttlMs = 10 * 60 * 1000;
+  const age = Date.now() - ts;
+  const fresh = Number.isFinite(ts) && age >= 0 && age <= ttlMs;
+  const ok = isAllowedEntry && mode === entry && fresh;
+
+  if (!ok) {
+    window.location.replace("./index.html");
+  }
+  return ok;
+}
+
+const ALLOW_TEACHING_BOOT = verifyGatewayEntry();
 
 class TeachingDemoApp {
   constructor() {
@@ -97,6 +133,16 @@ class TeachingDemoApp {
 
     this.kinMode = "ik";
     this.kinLastSolve = { reachable: null, clipped: null, errorMm: null };
+    this.kinTeachingState = {
+      step: "input",
+      selectedCandidate: -1,
+      advancedExpanded: false,
+      reachabilityLevel: "unknown",
+      marginMm: null,
+      candidates: [],
+      lastDiagnostics: null,
+      reverseCheck: null
+    };
 
     this.fea = {
       enabled: false,
@@ -115,15 +161,21 @@ class TeachingDemoApp {
     this.currentStage = "control";
     this.activeControlJointNames = ["J1", "J2", "J3", "J5"];
     this.uiStateSaveTimer = null;
+    this.initialUiState = null;
+    this.hasRestoredCameraState = false;
+    this.gatewayCheckWs = null;
+    this.gatewayCheckToken = 0;
 
     this.dom = {};
   }
 
   async init() {
     this.cacheDom();
+    this.initialUiState = this.loadUiState();
     this.bindStaticUi();
     await this.loadConfig();
     this.initScene();
+    this.bindViewportStateHooks();
     await this.buildRobot();
     this.buildJointUi();
     this.buildLessonsUi();
@@ -132,6 +184,8 @@ class TeachingDemoApp {
     this.updateOriginText();
     this.updateEefReadout();
     this.refreshFeaTexts();
+    this.refreshKinematicsTeachingUi();
+    this.checkGatewayStatus(false);
     drawFeaChartCore(this.dom.chart, this.feaHistory);
     const restored = this.restoreUiState();
     if (!restored) {
@@ -151,6 +205,11 @@ class TeachingDemoApp {
     this.dom.eefPos = byId("eefPos");
     this.dom.originText = byId("originText");
     this.dom.modeText = byId("modeText");
+    this.dom.gatewayStatusBadge = byId("gatewayStatusBadge");
+    this.dom.gatewayStatusText = byId("gatewayStatusText");
+    this.dom.gatewayStatusMeta = byId("gatewayStatusMeta");
+    this.dom.btnGatewayRecheck = byId("btnGatewayRecheck");
+    this.dom.btnGatewayBack = byId("btnGatewayBack");
 
     this.dom.btnDemo = byId("btnDemo");
     this.dom.btnReset = byId("btnReset");
@@ -195,7 +254,26 @@ class TeachingDemoApp {
     this.dom.kinModeCompare = byId("kinModeCompare");
     this.dom.btnSolveIK = byId("btnSolveIK");
     this.dom.btnSolveFK = byId("btnSolveFK");
+    this.dom.btnReverseCheck = byId("btnReverseCheck");
     this.dom.btnKineDemo = byId("btnKineDemo");
+    this.dom.btnStepPrev = byId("btnStepPrev");
+    this.dom.btnStepRun = byId("btnStepRun");
+    this.dom.btnProjectReachable = byId("btnProjectReachable");
+    this.dom.btnToggleKinAdvanced = byId("btnToggleKinAdvanced");
+    this.dom.kinExplainText = byId("kinExplainText");
+    this.dom.kinCandidateList = byId("kinCandidateList");
+    this.dom.kinBasisLimitMargin = byId("kinBasisLimitMargin");
+    this.dom.kinBasisError = byId("kinBasisError");
+    this.dom.kinBasisSmoothness = byId("kinBasisSmoothness");
+    this.dom.kinReverseStatus = byId("kinReverseStatus");
+    this.dom.kinAdvancedPanel = byId("kinAdvancedPanel");
+    this.dom.kinDiagReachability = byId("kinDiagReachability");
+    this.dom.kinDiagMargin = byId("kinDiagMargin");
+    this.dom.kinDiagPlanarR = byId("kinDiagPlanarR");
+    this.dom.kinDiagZOffset = byId("kinDiagZOffset");
+    this.dom.kinDiagSingularity = byId("kinDiagSingularity");
+    this.dom.kinDiagErrVec = byId("kinDiagErrVec");
+    this.dom.kinReasonText = byId("kinReasonText");
 
     this.dom.feaLoad = byId("feaLoad");
     this.dom.feaLoadText = byId("feaLoadText");
@@ -208,6 +286,11 @@ class TeachingDemoApp {
     this.dom.metricSf = byId("metricSf");
     this.dom.metricRisk = byId("metricRisk");
     this.dom.chart = byId("feaChart");
+
+    const collapsed = document.body.classList.contains("is-sidebar-collapsed");
+    if (this.dom.btnStageSidebarToggle) {
+      this.dom.btnStageSidebarToggle.textContent = collapsed ? "»" : "«";
+    }
   }
 
   bindStaticUi() {
@@ -224,6 +307,8 @@ class TeachingDemoApp {
 
     this.dom.btnReset?.addEventListener("click", () => this.resetPose());
     this.dom.btnDemo?.addEventListener("click", () => this.runOneClickDemo());
+    this.dom.btnGatewayRecheck?.addEventListener("click", () => this.checkGatewayStatus(true));
+    this.dom.btnGatewayBack?.addEventListener("click", () => this.goBackToGateway());
 
     this.dom.btnPrevLesson?.addEventListener("click", () => this.stepLesson(-1));
     this.dom.btnNextLesson?.addEventListener("click", () => this.stepLesson(1));
@@ -249,7 +334,12 @@ class TeachingDemoApp {
     this.dom.kinModeCompare?.addEventListener("click", () => this.setKinematicsMode("compare"));
     this.dom.btnSolveIK?.addEventListener("click", () => this.solveIkFromUi());
     this.dom.btnSolveFK?.addEventListener("click", () => this.solveFkToUi());
+    this.dom.btnReverseCheck?.addEventListener("click", () => this.reverseCheck());
     this.dom.btnKineDemo?.addEventListener("click", () => this.runKinematicsPathDemo());
+    this.dom.btnStepPrev?.addEventListener("click", () => this.runKinematicsStep(-1));
+    this.dom.btnStepRun?.addEventListener("click", () => this.runKinematicsStep(1));
+    this.dom.btnProjectReachable?.addEventListener("click", () => this.projectTargetToReachable());
+    this.dom.btnToggleKinAdvanced?.addEventListener("click", () => this.toggleKinematicsAdvanced());
 
     this.dom.btnRunFea?.addEventListener("click", () => this.runFea());
     this.dom.btnPauseFea?.addEventListener("click", () => this.toggleFeaAnimation());
@@ -275,8 +365,130 @@ class TeachingDemoApp {
     this.dom.btnWriteSelectedJ?.addEventListener("click", () => this.writeSelectedJoint());
 
     window.addEventListener("resize", () => this.onResize());
-    window.addEventListener("pagehide", () => this.saveUiState());
+    window.addEventListener("pagehide", () => {
+      this.saveUiState();
+      this.closeGatewayProbe();
+    });
     window.addEventListener("beforeunload", () => this.saveUiState());
+  }
+
+  bindViewportStateHooks() {
+    if (!this.controls) {
+      return;
+    }
+    this.controls.addEventListener("change", () => {
+      this.scheduleUiStateSave(180);
+    });
+  }
+
+  getGatewayUrl() {
+    try {
+      const saved = String(sessionStorage.getItem(GATEWAY_URL_KEY) || "").trim();
+      if (saved) {
+        return saved;
+      }
+    } catch (_err) {
+      // ignore storage errors
+    }
+    return "ws://127.0.0.1:8787";
+  }
+
+  setGatewayStatus(text, tone = "warn", meta = "") {
+    if (this.dom.gatewayStatusText) {
+      this.dom.gatewayStatusText.textContent = text;
+    }
+    if (this.dom.gatewayStatusMeta) {
+      this.dom.gatewayStatusMeta.textContent = meta;
+    }
+    if (this.dom.gatewayStatusBadge) {
+      this.dom.gatewayStatusBadge.textContent = tone === "ok" ? "已连接" : tone === "bad" ? "未连接" : "检测中";
+      this.dom.gatewayStatusBadge.classList.remove("tone-ok", "tone-warn", "tone-bad");
+      if (tone === "ok") this.dom.gatewayStatusBadge.classList.add("tone-ok");
+      if (tone === "warn") this.dom.gatewayStatusBadge.classList.add("tone-warn");
+      if (tone === "bad") this.dom.gatewayStatusBadge.classList.add("tone-bad");
+    }
+  }
+
+  closeGatewayProbe() {
+    if (this.gatewayCheckWs) {
+      try {
+        this.gatewayCheckWs.close();
+      } catch (_err) {
+        // ignore
+      }
+      this.gatewayCheckWs = null;
+    }
+  }
+
+  goBackToGateway() {
+    this.closeGatewayProbe();
+    window.location.href = "./index.html";
+  }
+
+  checkGatewayStatus(triggeredByUser = false) {
+    const url = this.getGatewayUrl();
+    this.gatewayCheckToken += 1;
+    const token = this.gatewayCheckToken;
+    this.closeGatewayProbe();
+    this.setGatewayStatus("正在检测网关连接状态...", "warn", `网关地址: ${url}`);
+
+    let ws;
+    try {
+      ws = new WebSocket(url);
+    } catch (_err) {
+      this.setGatewayStatus("无法创建网关连接，请检查地址或网关进程。", "bad", `网关地址: ${url}`);
+      return;
+    }
+    this.gatewayCheckWs = ws;
+
+    const clearProbe = () => {
+      if (token !== this.gatewayCheckToken) {
+        return;
+      }
+      this.gatewayCheckWs = null;
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (token !== this.gatewayCheckToken) {
+        return;
+      }
+      this.setGatewayStatus("检测超时：未连接到网关。", "bad", `网关地址: ${url}`);
+      this.closeGatewayProbe();
+    }, 2200);
+
+    ws.addEventListener("open", () => {
+      if (token !== this.gatewayCheckToken) {
+        return;
+      }
+      clearTimeout(timeoutId);
+      this.setGatewayStatus("网关在线，可继续教学。", "ok", `网关地址: ${url}`);
+      if (triggeredByUser) {
+        this.log("Gateway reachable", { url });
+      }
+      try {
+        ws.close();
+      } catch (_err) {
+        // ignore
+      }
+      clearProbe();
+    });
+
+    ws.addEventListener("error", () => {
+      if (token !== this.gatewayCheckToken) {
+        return;
+      }
+      clearTimeout(timeoutId);
+      this.setGatewayStatus("网关不可达，请返回连接页重新连接。", "bad", `网关地址: ${url}`);
+      clearProbe();
+    });
+
+    ws.addEventListener("close", () => {
+      if (token !== this.gatewayCheckToken) {
+        return;
+      }
+      clearTimeout(timeoutId);
+      clearProbe();
+    });
   }
 
   async loadConfig() {
@@ -472,7 +684,7 @@ class TeachingDemoApp {
     this.kinLastSolve = { reachable: null, clipped: null, errorMm: null };
     this.updateEefReadout();
     if (this.dom.modeText) {
-      this.dom.modeText.textContent = "鎵嬪姩鎺у埗";
+      this.dom.modeText.textContent = "手动控制";
     }
     this.scheduleUiStateSave();
     this.log("Robot reset to default pose");
@@ -601,6 +813,34 @@ class TeachingDemoApp {
     return runKinematicsPathDemoRuntime(this);
   }
 
+  runKinematicsStep(direction) {
+    const result = runKinematicsStepRuntime(this, direction);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  toggleKinematicsAdvanced() {
+    const result = toggleKinematicsAdvancedRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  projectTargetToReachable() {
+    const result = projectTargetToReachableRuntime(this);
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  reverseCheck() {
+    const result = reverseCheckRuntime(this, { computeFkCore });
+    this.scheduleUiStateSave();
+    return result;
+  }
+
+  refreshKinematicsTeachingUi() {
+    return refreshKinematicsTeachingUiRuntime(this);
+  }
+
   solveIkFromUi() {
     return solveIkFromUiRuntime(this, { toFiniteNumber, solveIkCore });
   }
@@ -695,12 +935,52 @@ class TeachingDemoApp {
           y: Number(this.dom.ikY?.value),
           z: Number(this.dom.ikZ?.value)
         },
+        kinTeaching: {
+          step: String(this.kinTeachingState?.step || "input"),
+          selectedCandidate: Number(this.kinTeachingState?.selectedCandidate ?? -1),
+          advancedExpanded: Boolean(this.kinTeachingState?.advancedExpanded),
+          reachabilityLevel: String(this.kinTeachingState?.reachabilityLevel || "unknown"),
+          marginMm: Number(this.kinTeachingState?.marginMm),
+          reverseCheck: this.kinTeachingState?.reverseCheck && typeof this.kinTeachingState.reverseCheck === "object"
+            ? {
+              dx: Number(this.kinTeachingState.reverseCheck.dx),
+              dy: Number(this.kinTeachingState.reverseCheck.dy),
+              dz: Number(this.kinTeachingState.reverseCheck.dz),
+              errMm: Number(this.kinTeachingState.reverseCheck.errMm)
+            }
+            : null,
+          candidates: Array.isArray(this.kinTeachingState?.candidates)
+            ? this.kinTeachingState.candidates.map((c) => ({
+              index: Number(c.index),
+              label: String(c.label || ""),
+              angles: c.angles && typeof c.angles === "object" ? c.angles : null,
+              clipped: Boolean(c.clipped),
+              errorMm: Number(c.errorMm),
+              minLimitMarginDeg: Number(c.minLimitMarginDeg),
+              smoothnessDeltaDeg: Number(c.smoothnessDeltaDeg)
+            }))
+            : []
+        },
         fea: {
           enabled: Boolean(this.fea.enabled),
           running: Boolean(this.fea.running),
           load: Number(this.fea.load),
           exaggeration: Number(this.fea.exaggeration)
         },
+        camera: this.camera && this.controls
+          ? {
+            position: {
+              x: Number(this.camera.position.x),
+              y: Number(this.camera.position.y),
+              z: Number(this.camera.position.z)
+            },
+            target: {
+              x: Number(this.controls.target.x),
+              y: Number(this.controls.target.y),
+              z: Number(this.controls.target.z)
+            }
+          }
+          : null,
         jointAngles
       };
 
@@ -724,7 +1004,7 @@ class TeachingDemoApp {
   }
 
   restoreUiState() {
-    const state = this.loadUiState();
+    const state = this.initialUiState || this.loadUiState();
     if (!state) {
       return false;
     }
@@ -759,6 +1039,49 @@ class TeachingDemoApp {
       if (Number.isFinite(z) && this.dom.ikZ) this.dom.ikZ.value = String(z);
     }
 
+    if (state.kinTeaching && typeof state.kinTeaching === "object") {
+      const s = state.kinTeaching;
+      if (typeof s.step === "string") {
+        this.kinTeachingState.step = s.step;
+      }
+      if (typeof s.advancedExpanded === "boolean") {
+        this.kinTeachingState.advancedExpanded = s.advancedExpanded;
+      }
+      if (typeof s.reachabilityLevel === "string") {
+        this.kinTeachingState.reachabilityLevel = s.reachabilityLevel;
+      }
+      const marginMm = Number(s.marginMm);
+      if (Number.isFinite(marginMm)) {
+        this.kinTeachingState.marginMm = marginMm;
+      }
+      const selected = Number(s.selectedCandidate);
+      if (Number.isFinite(selected)) {
+        this.kinTeachingState.selectedCandidate = selected;
+      }
+      if (Array.isArray(s.candidates)) {
+        this.kinTeachingState.candidates = s.candidates
+          .filter((c) => c && typeof c === "object")
+          .map((c) => ({
+            index: Number(c.index),
+            label: String(c.label || ""),
+            angles: c.angles && typeof c.angles === "object" ? c.angles : {},
+            clipped: Boolean(c.clipped),
+            errorMm: Number(c.errorMm),
+            minLimitMarginDeg: Number(c.minLimitMarginDeg),
+            smoothnessDeltaDeg: Number(c.smoothnessDeltaDeg)
+          }));
+      }
+      if (s.reverseCheck && typeof s.reverseCheck === "object") {
+        const dx = Number(s.reverseCheck.dx);
+        const dy = Number(s.reverseCheck.dy);
+        const dz = Number(s.reverseCheck.dz);
+        const errMm = Number(s.reverseCheck.errMm);
+        if ([dx, dy, dz, errMm].every((n) => Number.isFinite(n))) {
+          this.kinTeachingState.reverseCheck = { dx, dy, dz, errMm };
+        }
+      }
+    }
+
     if (state.fea && typeof state.fea === "object") {
       const load = Number(state.fea.load);
       const exaggeration = Number(state.fea.exaggeration);
@@ -781,7 +1104,7 @@ class TeachingDemoApp {
         this.fea.running = state.fea.running;
       }
       if (this.dom.btnPauseFea) {
-        this.dom.btnPauseFea.textContent = this.fea.running ? "鏆傚仠褰㈠彉鍔ㄧ敾" : "鎭㈠褰㈠彉鍔ㄧ敾";
+        this.dom.btnPauseFea.textContent = this.fea.running ? "暂停形变动画" : "恢复形变动画";
       }
       this.refreshFeaTexts();
       if (this.fea.enabled) {
@@ -806,6 +1129,22 @@ class TeachingDemoApp {
       this.updateEefReadout();
     }
 
+    if (state.camera && typeof state.camera === "object" && this.camera && this.controls) {
+      const px = Number(state.camera.position?.x);
+      const py = Number(state.camera.position?.y);
+      const pz = Number(state.camera.position?.z);
+      const tx = Number(state.camera.target?.x);
+      const ty = Number(state.camera.target?.y);
+      const tz = Number(state.camera.target?.z);
+      const valid = [px, py, pz, tx, ty, tz].every((n) => Number.isFinite(n));
+      if (valid) {
+        this.camera.position.set(px, py, pz);
+        this.controls.target.set(tx, ty, tz);
+        this.controls.update();
+        this.hasRestoredCameraState = true;
+      }
+    }
+
     if (typeof state.kinMode === "string") {
       this.setKinematicsMode(state.kinMode);
     }
@@ -815,6 +1154,7 @@ class TeachingDemoApp {
     }
 
     this.updateKinematicsReadout({ step: "input" });
+    this.refreshKinematicsTeachingUi();
     this.onResize();
     return true;
   }
@@ -850,13 +1190,15 @@ class TeachingDemoApp {
   }
 }
 
-const app = new TeachingDemoApp();
-app.init().catch((err) => {
-  const logEl = document.getElementById("logs");
-  if (logEl) {
-    logEl.textContent = `[BOOT ERROR] ${String(err)}\n${logEl.textContent}`;
-  }
-  // eslint-disable-next-line no-console
-  console.error(err);
-});
+if (ALLOW_TEACHING_BOOT) {
+  const app = new TeachingDemoApp();
+  app.init().catch((err) => {
+    const logEl = document.getElementById("logs");
+    if (logEl) {
+      logEl.textContent = `[BOOT ERROR] ${String(err)}\n${logEl.textContent}`;
+    }
+    // eslint-disable-next-line no-console
+    console.error(err);
+  });
+}
 

@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
@@ -10,7 +10,7 @@
     />
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./styles-base.css?v=20260518-style-split1" />
-    <link rel="stylesheet" href="./styles-teaching.css?v=20260518-style-split1" />
+    <link rel="stylesheet" href="./styles-teaching.css?v=20260519-tour-follow2" />
   </head>
   <body class="teach-page">
     <script>
@@ -58,6 +58,10 @@
           </div>
           <div class="stage-subhead">功能</div>
           <div class="stage-sidebar-actions">
+            <button id="btnTourGuide" class="btn sidebar-btn" type="button">
+              <span class="sidebar-btn-icon" aria-hidden="true">?</span>
+              <span class="sidebar-btn-label">教学引导</span>
+            </button>
             <button id="btnDemo" class="btn btn-strong sidebar-btn" type="button">
               <span class="sidebar-btn-icon" aria-hidden="true">▶</span>
               <span class="sidebar-btn-label">一键教学演示</span>
@@ -187,7 +191,7 @@
                 </div>
                 <div class="inline-actions">
                   <button id="btnApplyFrame" class="btn">应用轴心与轴线</button>
-                  <button id="btnWriteSelectedJ" class="btn btn-strong">Write Selected J</button>
+                  <button id="btnWriteSelectedJ" class="btn btn-strong">写入当前关节</button>
                 </div>
               </section>
             </div>
@@ -198,33 +202,33 @@
           <section class="kin-lab">
             <header class="lab-topbar">
               <div class="lab-title">
-                <h2>Kinematics Lab (FK / IK)</h2>
-                <p>Input -> Solve -> Validate. Compare the target point and FK end-effector output.</p>
+                <h2>正逆解实验（FK / IK）</h2>
+                <p>输入 → 求解 → 验证：对比目标点与正运动学末端输出。</p>
               </div>
               <div class="lab-toolbar">
                 <div class="kin-mode-switch">
-                  <button id="kinModeIK" class="btn mode-btn is-mode-active" type="button">IK Mode</button>
-                  <button id="kinModeFK" class="btn mode-btn" type="button">FK Mode</button>
-                  <button id="kinModeCompare" class="btn mode-btn" type="button">Compare</button>
+                  <button id="kinModeIK" class="btn mode-btn is-mode-active" type="button">逆解 IK</button>
+                  <button id="kinModeFK" class="btn mode-btn" type="button">正解 FK</button>
+                  <button id="kinModeCompare" class="btn mode-btn" type="button">对比模式</button>
                 </div>
                 <div class="inline-actions kin-actions">
-                  <button id="btnSolveIK" class="btn btn-strong" type="button">Solve IK</button>
-                  <button id="btnSolveFK" class="btn" type="button">Solve FK</button>
-                  <button id="btnReverseCheck" class="btn" type="button">Reverse Check</button>
-                  <button id="btnKineDemo" class="btn" type="button">Path Demo</button>
+                  <button id="btnSolveIK" class="btn btn-strong" type="button">执行逆解</button>
+                  <button id="btnSolveFK" class="btn" type="button">执行正解</button>
+                  <button id="btnReverseCheck" class="btn" type="button">反向验证</button>
+                  <button id="btnKineDemo" class="btn" type="button">路径演示</button>
                 </div>
                 <div class="inline-actions kin-actions-secondary">
-                  <button id="btnStepPrev" class="btn" type="button">Prev Step</button>
-                  <button id="btnStepRun" class="btn" type="button">Next Step</button>
-                  <button id="btnProjectReachable" class="btn" type="button" disabled>Project Reachable</button>
-                  <button id="btnToggleKinAdvanced" class="btn ghost-btn" type="button">Show Advanced</button>
+                  <button id="btnStepPrev" class="btn" type="button">上一步</button>
+                  <button id="btnStepRun" class="btn" type="button">下一步</button>
+                  <button id="btnProjectReachable" class="btn" type="button" disabled>投影到可达点</button>
+                  <button id="btnToggleKinAdvanced" class="btn ghost-btn" type="button">展开高级分析</button>
                 </div>
               </div>
             </header>
 
             <div class="kin-main-grid">
               <section class="kin-col kin-input-col">
-                <p class="kin-subtitle">Input Area: Target Point (robot local)</p>
+                <p class="kin-subtitle">输入区：目标点（机械臂局部坐标）</p>
                 <div class="ik-grid">
                   <label>
                     X (mm)
@@ -239,75 +243,75 @@
                     <input id="ikZ" type="number" step="1" value="180" />
                   </label>
                 </div>
-                <p id="kinInputHint" class="kin-hint">IK: input target point, then solve to generate joint angles.</p>
+                <p id="kinInputHint" class="kin-hint">逆解模式：输入目标点后执行求解，生成关节角。</p>
               </section>
 
               <section class="kin-col kin-step-col">
-                <p class="kin-subtitle">Solve Flow</p>
+                <p class="kin-subtitle">求解流程</p>
                 <ol id="kinSteps" class="kin-steps">
-                  <li data-step="input">1. Input target / current joint angles</li>
-                  <li data-step="reachable">2. Reachability check</li>
-                  <li data-step="solve">3. Solve and apply angles</li>
-                  <li data-step="validate">4. Validate end-effector error</li>
+                  <li data-step="input">1. 输入目标点 / 确认当前关节角</li>
+                  <li data-step="reachable">2. 可达性检查</li>
+                  <li data-step="solve">3. 求解并应用关节角</li>
+                  <li data-step="validate">4. 验证末端误差</li>
                 </ol>
                 <div class="kin-explain-card">
-                  <p class="kin-explain-title">Step Explain</p>
-                  <p id="kinExplainText" class="kin-explain-text">Step 1: input target point or confirm current joint angles.</p>
+                  <p class="kin-explain-title">步骤说明</p>
+                  <p id="kinExplainText" class="kin-explain-text">步骤 1：输入目标点或确认当前关节角。</p>
                 </div>
                 <div class="kin-candidate-card">
-                  <p class="kin-explain-title">Candidate Solutions (Elbow Up / Down)</p>
+                  <p class="kin-explain-title">候选解（肘上 / 肘下）</p>
                   <div id="kinCandidateList" class="kin-candidate-list"></div>
                 </div>
               </section>
 
               <section class="kin-col kin-result-col">
-                <p class="kin-subtitle">Results</p>
+                <p class="kin-subtitle">求解结果</p>
                 <div class="kin-metric-grid">
                   <div class="kin-metric-card">
-                    <span>Reachability</span>
+                    <span>可达性</span>
                     <strong id="kinReachable" class="kin-chip">-</strong>
                   </div>
                   <div class="kin-metric-card">
-                    <span>End Error</span>
+                    <span>末端误差</span>
                     <strong id="kinError" class="kin-chip">-</strong>
                   </div>
                   <div class="kin-metric-card">
-                    <span>Joint Clip</span>
+                    <span>关节裁剪</span>
                     <strong id="kinClip" class="kin-chip">-</strong>
                   </div>
                 </div>
                 <div class="kin-basis-grid">
                   <div class="kin-basis-item">
-                    <span>Limit Margin</span>
+                    <span>限位裕量</span>
                     <strong id="kinBasisLimitMargin">-</strong>
                   </div>
                   <div class="kin-basis-item">
-                    <span>Error Score</span>
+                    <span>误差评分</span>
                     <strong id="kinBasisError">-</strong>
                   </div>
                   <div class="kin-basis-item">
-                    <span>Smoothness Cost</span>
+                    <span>平滑代价</span>
                     <strong id="kinBasisSmoothness">-</strong>
                   </div>
                 </div>
-                <p id="ikStatus" class="status-line">Waiting for solve.</p>
-                <p id="kinReverseStatus" class="status-line status-line-sub">Reverse check not run yet.</p>
+                <p id="ikStatus" class="status-line">等待求解。</p>
+                <p id="kinReverseStatus" class="status-line status-line-sub">尚未执行反向验证。</p>
               </section>
             </div>
 
             <section id="kinAdvancedPanel" class="kin-advanced-panel" hidden>
               <div class="kin-advanced-grid">
                 <div class="kin-advanced-card">
-                  <p class="kin-explain-title">Advanced Diagnostics: Geometry & Reachability</p>
+                  <p class="kin-explain-title">高级诊断：几何与可达性</p>
                   <ul class="kin-diag-list">
-                    <li>Reach level: <strong id="kinDiagReachability">-</strong></li>
-                    <li>Boundary margin: <strong id="kinDiagMargin">-</strong></li>
-                    <li>Planar radius r: <strong id="kinDiagPlanarR">-</strong></li>
-                    <li>Z offset (z-base): <strong id="kinDiagZOffset">-</strong></li>
-                    <li>Near singularity: <strong id="kinDiagSingularity">-</strong></li>
-                    <li>Error vector: <strong id="kinDiagErrVec">-</strong></li>
+                    <li>可达等级：<strong id="kinDiagReachability">-</strong></li>
+                    <li>边界裕量：<strong id="kinDiagMargin">-</strong></li>
+                    <li>平面半径 r：<strong id="kinDiagPlanarR">-</strong></li>
+                    <li>Z 偏移（z-base）：<strong id="kinDiagZOffset">-</strong></li>
+                    <li>接近奇异：<strong id="kinDiagSingularity">-</strong></li>
+                    <li>误差向量：<strong id="kinDiagErrVec">-</strong></li>
                   </ul>
-                  <p class="kin-diag-reason">Notes: <span id="kinReasonText">-</span></p>
+                  <p class="kin-diag-reason">备注：<span id="kinReasonText">-</span></p>
                 </div>
               </div>
             </section>
@@ -318,87 +322,87 @@
           <section class="fea-lab">
             <header class="lab-topbar">
               <div class="lab-title">
-                <h2>FEA Teaching Lab</h2>
-                <p>Setup -> Compute -> Observe -> Explain. Link cloud map behavior to risk indicators.</p>
+                <h2>有限元教学实验</h2>
+                <p>设置 → 计算 → 观察 → 解释：将云图表现与风险指标关联理解。</p>
               </div>
             </header>
 
             <section class="fea-status-wrap">
               <div class="fea-stepper-wrap">
                 <div class="fea-stepper-main">
-                  <p id="feaStepText" class="fea-step-chip">Step 1/4 Setup</p>
-                  <ol id="feaStepper" class="fea-stepper" aria-label="FEA teaching steps">
-                    <li data-fea-step="setup" class="is-active"><span>1</span>Setup</li>
-                    <li data-fea-step="compute"><span>2</span>Compute</li>
-                    <li data-fea-step="observe"><span>3</span>Observe</li>
-                    <li data-fea-step="explain"><span>4</span>Explain</li>
+                  <p id="feaStepText" class="fea-step-chip">步骤 1/4 设置</p>
+                  <ol id="feaStepper" class="fea-stepper" aria-label="有限元教学步骤">
+                    <li data-fea-step="setup" class="is-active"><span>1</span>设置</li>
+                    <li data-fea-step="compute"><span>2</span>计算</li>
+                    <li data-fea-step="observe"><span>3</span>观察</li>
+                    <li data-fea-step="explain"><span>4</span>解释</li>
                   </ol>
                 </div>
                 <div class="fea-stepper-actions">
-                  <button id="btnFeaStepPrev" class="btn fea-step-btn" type="button">Prev</button>
-                  <button id="btnFeaStepNext" class="btn fea-step-btn btn-strong" type="button">Next Step</button>
+                  <button id="btnFeaStepPrev" class="btn fea-step-btn" type="button">上一步</button>
+                  <button id="btnFeaStepNext" class="btn fea-step-btn btn-strong" type="button">下一步</button>
                 </div>
               </div>
 
               <div class="fea-status-main">
-                <p id="feaStatusText" class="status-line">Waiting to start FEA teaching flow.</p>
-                <p id="feaExplainText" class="fea-explain-line">Configure load and deformation style, then run simulation.</p>
+                <p id="feaStatusText" class="status-line">等待开始有限元教学流程。</p>
+                <p id="feaExplainText" class="fea-explain-line">配置载荷与变形样式后运行仿真。</p>
               </div>
 
               <div class="fea-view-controls">
                 <div class="fea-toggle-row">
                   <label class="fea-switch" for="btnFeaHotspot">
-                    <span>Hotspot</span>
-                    <button id="btnFeaHotspot" class="fea-switch-btn" type="button" aria-pressed="true">ON</button>
+                    <span>热点</span>
+                    <button id="btnFeaHotspot" class="fea-switch-btn" type="button" aria-pressed="true">开</button>
                   </label>
-                  <div class="fea-segment" role="group" aria-label="Deformation style">
-                    <span class="fea-segment-label">Deform</span>
-                    <button id="btnFeaDeformExaggerated" class="fea-seg-btn is-active" type="button" aria-pressed="true">Exaggerated</button>
-                    <button id="btnFeaDeformReal" class="fea-seg-btn" type="button" aria-pressed="false">Real</button>
+                  <div class="fea-segment" role="group" aria-label="变形样式">
+                    <span class="fea-segment-label">变形</span>
+                    <button id="btnFeaDeformExaggerated" class="fea-seg-btn is-active" type="button" aria-pressed="true">夸张</button>
+                    <button id="btnFeaDeformReal" class="fea-seg-btn" type="button" aria-pressed="false">真实</button>
                   </div>
                 </div>
                 <div class="fea-quick-actions">
-                  <button id="btnRunFea" class="btn btn-strong fea-run-btn" type="button">Run FEA Demo</button>
-                  <button id="btnPauseFea" class="btn fea-run-btn" type="button">Pause Deformation</button>
-                  <button id="btnFeaFocusRisk" class="btn fea-mini-btn" type="button">Focus Risk Section</button>
-                  <button id="btnToggleFeaAdvanced" class="btn ghost-btn fea-mini-btn" type="button">Show Advanced</button>
+                  <button id="btnRunFea" class="btn btn-strong fea-run-btn" type="button">运行有限元演示</button>
+                  <button id="btnPauseFea" class="btn fea-run-btn" type="button">暂停形变动画</button>
+                  <button id="btnFeaFocusRisk" class="btn fea-mini-btn" type="button">聚焦风险段</button>
+                  <button id="btnToggleFeaAdvanced" class="btn ghost-btn fea-mini-btn" type="button">展开高级</button>
                 </div>
               </div>
             </section>
 
             <div class="fea-main-grid">
               <section class="fea-col fea-controls">
-                <h3 class="module-subtitle">Condition Input</h3>
+                <h3 class="module-subtitle">工况输入</h3>
                 <label class="slider-label">
-                  Load (demo scale):
+                  载荷（演示量纲）：
                   <span id="feaLoadText">50%</span>
                   <input id="feaLoad" type="range" min="0" max="100" value="50" />
                 </label>
                 <label class="slider-label">
-                  Deformation scale:
+                  变形放大系数：
                   <span id="feaExaggerationText">120%</span>
                   <input id="feaExaggeration" type="range" min="20" max="200" value="120" />
                 </label>
-                <p class="fea-legend-live">Current hotspot level: <strong id="feaLegendState">-</strong></p>
+                <p class="fea-legend-live">当前热点等级：<strong id="feaLegendState">-</strong></p>
               </section>
 
               <section class="fea-col fea-metrics">
-                <h3 class="module-subtitle">Core Metrics</h3>
+                <h3 class="module-subtitle">核心指标</h3>
                 <div class="metric-grid">
                   <div class="metric metric-lg">
-                    <span>Max equivalent stress</span>
+                    <span>最大等效应力</span>
                     <strong><span id="metricStress">0.0</span><small>MPa</small></strong>
                   </div>
                   <div class="metric metric-lg">
-                    <span>Max displacement</span>
+                    <span>最大位移</span>
                     <strong><span id="metricDisp">0.000</span><small>mm</small></strong>
                   </div>
                   <div class="metric">
-                    <span>Safety factor</span>
+                    <span>安全系数</span>
                     <strong id="metricSf">0</strong>
                   </div>
                   <div class="metric">
-                    <span>Risk level</span>
+                    <span>风险等级</span>
                     <strong id="metricRisk" class="risk-badge risk-low">-</strong>
                   </div>
                 </div>
@@ -408,18 +412,18 @@
             <section class="fea-bottom-grid">
               <div class="fea-chart-wrap">
                 <div class="fea-chart-head">
-                  <h3 class="module-subtitle">Trend (Stress / Disp)</h3>
+                  <h3 class="module-subtitle">趋势（应力 / 位移）</h3>
                   <div class="legend fea-chart-legend">
-                    <div><i class="c1"></i>Disp (mm)</div>
-                    <div><i class="c3"></i>Stress (MPa)</div>
-                    <div><i class="c2"></i>Warn</div>
-                    <div><i class="c4"></i>Critical</div>
+                    <div><i class="c1"></i>位移 (mm)</div>
+                    <div><i class="c3"></i>应力 (MPa)</div>
+                    <div><i class="c2"></i>预警</div>
+                    <div><i class="c4"></i>危险</div>
                   </div>
                 </div>
                 <canvas id="feaChart" width="420" height="210"></canvas>
               </div>
               <div class="fea-log-wrap">
-                <h3 class="module-subtitle">Runtime Log</h3>
+                <h3 class="module-subtitle">运行日志</h3>
                 <pre id="logs" class="logs"></pre>
               </div>
             </section>
@@ -427,15 +431,15 @@
             <section id="feaAdvancedPanel" class="fea-advanced-panel" hidden>
               <div class="fea-advanced-grid">
                 <div class="fea-advanced-card">
-                  <h3 class="module-subtitle">Section Contribution (J2/J3/J4)</h3>
+                  <h3 class="module-subtitle">区段贡献（J2/J3/J4）</h3>
                   <div class="fea-section-head">
-                    <span>Section</span><span>Stress %</span><span>Disp %</span>
+                    <span>区段</span><span>应力 %</span><span>位移 %</span>
                   </div>
                   <div id="feaSectionRows" class="fea-section-rows"></div>
-                  <p class="fea-risk-reason">Risk reason: <span id="feaRiskReason">-</span></p>
+                  <p class="fea-risk-reason">风险原因：<span id="feaRiskReason">-</span></p>
                 </div>
                 <div class="fea-advanced-card">
-                  <h3 class="module-subtitle">Keyframe Replay</h3>
+                  <h3 class="module-subtitle">关键帧回放</h3>
                   <div id="feaHistoryList" class="fea-history-list"></div>
                 </div>
               </div>
@@ -445,7 +449,8 @@
       </main>
       </div>
     </div>
-    <script type="module" src="./app.js?v=20260518-hotfix-model-visible"></script>
+    <div id="tourRoot" class="tour-root" hidden aria-hidden="true"></div>
+    <script type="module" src="./app.js?v=20260519-tour-guide"></script>
   </body>
 </html>
 

@@ -158,6 +158,27 @@ export function clearKinematicsDemoTimersRuntime(app) {
   app.kinDemoTimerIds = [];
 }
 
+export function nudgeJointForTourRuntime(app, jointName, deltaDeg) {
+  const name = String(jointName || "");
+  if (!name || !app.jointDefs.has(name)) {
+    return;
+  }
+  const def = app.jointDefs.get(name);
+  const current = Number(app.jointAngles[name] || def?.defaultDeg || 0);
+  const next = Math.min(def.maxDeg, Math.max(def.minDeg, current + Number(deltaDeg || 0)));
+  app.setJointAngle(name, next, { mode: "教学引导", syncUi: true });
+}
+
+export function runControlLessonSequenceRuntime(app, indices, animate = true) {
+  const list = Array.isArray(indices) ? indices : [0];
+  for (const raw of list) {
+    const idx = Number(raw);
+    if (Number.isFinite(idx)) {
+      app.applyLesson(idx, animate);
+    }
+  }
+}
+
 export function runOneClickDemoRuntime(app) {
   app.clearKinematicsDemoTimers();
   app.setTeachingStage("control");

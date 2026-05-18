@@ -1,4 +1,4 @@
-﻿function safeText(v) {
+function safeText(v) {
   return String(v ?? "");
 }
 
@@ -557,13 +557,13 @@ export function updateEefReadoutRuntime(app, deps) {
 }
 
 function setFeaNarrative(app, payload = {}) {
-  const conclusion = safeText(payload.conclusion || "Not started");
-  const reason = safeText(payload.reason || "Configure load and run simulation.");
-  const suggestion = safeText(payload.suggestion || "Use step replay to observe response changes.");
+  const conclusion = safeText(payload.conclusion || "尚未开始");
+  const reason = safeText(payload.reason || "配置载荷与变形样式后运行仿真。");
+  const suggestion = safeText(payload.suggestion || "可用步骤回放观察响应变化。");
   const explain = safeText(payload.explain || reason);
 
   if (app.dom.feaStatusText) {
-    app.dom.feaStatusText.innerHTML = `<strong>Conclusion:</strong> ${conclusion}<br /><strong>Reason:</strong> ${reason}<br /><strong>Suggestion:</strong> ${suggestion}`;
+    app.dom.feaStatusText.innerHTML = `<strong>结论：</strong>${conclusion}<br /><strong>原因：</strong>${reason}<br /><strong>建议：</strong>${suggestion}`;
   }
   if (app.dom.feaExplainText) {
     app.dom.feaExplainText.textContent = explain;
@@ -577,12 +577,12 @@ function updateFeaStepperUi(app) {
 
   if (app.dom.feaStepText) {
     const map = {
-      setup: "Step 1/4 Setup",
-      compute: "Step 2/4 Compute",
-      observe: "Step 3/4 Observe",
-      explain: "Step 4/4 Explain"
+      setup: "步骤 1/4 设置",
+      compute: "步骤 2/4 计算",
+      observe: "步骤 3/4 观察",
+      explain: "步骤 4/4 解释"
     };
-    app.dom.feaStepText.textContent = map[step] || "Step 1/4 Setup";
+    app.dom.feaStepText.textContent = map[step] || "步骤 1/4 设置";
   }
 
   const items = Array.from(document.querySelectorAll("#feaStepper li[data-fea-step]"));
@@ -603,10 +603,10 @@ function updateFeaStepperUi(app) {
 function updateFeaLegendState(app, hotspotLevel) {
   const level = safeText(hotspotLevel || "").toLowerCase();
   const map = {
-    low: "Low",
-    medium: "Medium",
-    high: "High",
-    critical: "Critical"
+    low: "低",
+    medium: "中",
+    high: "高",
+    critical: "危险"
   };
   if (app.dom.feaLegendState) {
     app.dom.feaLegendState.textContent = map[level] || "-";
@@ -617,7 +617,7 @@ function updateFeaSectionContrib(app, sectionRank = []) {
   const rows = Array.isArray(sectionRank) ? sectionRank : [];
   if (app.dom.feaSectionRows) {
     if (!rows.length) {
-      app.dom.feaSectionRows.innerHTML = '<p class="fea-empty">No diagnostics yet. Run FEA first.</p>';
+      app.dom.feaSectionRows.innerHTML = '<p class="fea-empty">暂无诊断数据，请先运行有限元演示。</p>';
     } else {
       app.dom.feaSectionRows.innerHTML = rows.map((r) => `
         <div class="fea-section-row${r.rank === 1 ? " is-top" : ""}">
@@ -721,7 +721,7 @@ export function toggleFeaAdvancedRuntime(app) {
     app.dom.feaAdvancedPanel.hidden = !expanded;
   }
   if (app.dom.btnToggleFeaAdvanced) {
-    app.dom.btnToggleFeaAdvanced.textContent = expanded ? "Hide Advanced" : "Show Advanced";
+    app.dom.btnToggleFeaAdvanced.textContent = expanded ? "收起高级" : "展开高级";
   }
 }
 
@@ -733,16 +733,17 @@ export function runFeaStepRuntime(app, direction) {
   app.feaTeachingState.step = next;
 
   const explainMap = {
-    setup: "Step 1: define load and deformation style.",
-    compute: "Step 2: compute stress and displacement field.",
-    observe: "Step 3: observe cloud map, hotspot and risk trend.",
-    explain: "Step 4: explain why this segment dominates risk."
+    setup: "步骤 1：设置载荷与变形样式。",
+    compute: "步骤 2：计算应力与位移场。",
+    observe: "步骤 3：观察云图、热点与风险趋势。",
+    explain: "步骤 4：解释为何该区段主导风险。"
   };
 
+  const stepNames = { setup: "设置", compute: "计算", observe: "观察", explain: "解释" };
   setFeaNarrative(app, {
-    conclusion: `FEA flow moved to ${next}`,
+    conclusion: `有限元流程：${stepNames[next] || next}`,
     reason: explainMap[next],
-    suggestion: "Use keyframe replay to compare adjacent states.",
+    suggestion: "可用关键帧回放对比相邻状态。",
     explain: explainMap[next]
   });
   updateFeaStepperUi(app);
@@ -751,7 +752,7 @@ export function runFeaStepRuntime(app, direction) {
 export function toggleFeaHotspotRuntime(app) {
   app.feaTeachingState.showHotspot = !Boolean(app.feaTeachingState.showHotspot);
   if (app.dom.btnFeaHotspot) {
-    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "ON" : "OFF";
+    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "开" : "关";
     app.dom.btnFeaHotspot.setAttribute("aria-pressed", app.feaTeachingState.showHotspot ? "true" : "false");
     app.dom.btnFeaHotspot.classList.toggle("is-on", app.feaTeachingState.showHotspot);
   }
@@ -769,7 +770,7 @@ function updateFeaDeformSegmentUi(app) {
     app.dom.btnFeaDeformReal.setAttribute("aria-pressed", isReal ? "true" : "false");
   }
   if (app.dom.btnFeaDeformStyle) {
-    app.dom.btnFeaDeformStyle.textContent = isReal ? "Deform: Real" : "Deform: Exaggerated";
+    app.dom.btnFeaDeformStyle.textContent = isReal ? "变形：真实" : "变形：夸张";
   }
 }
 
@@ -785,10 +786,10 @@ export function toggleFeaDeformStyleRuntime(app, mode) {
 export function focusFeaRiskSectionRuntime(app) {
   focusFeaPeakSection(app);
   setFeaNarrative(app, {
-    conclusion: "Camera focused on risk segment",
-    reason: `Current focus: ${safeText(app.feaTeachingState.focusSection || "-").toUpperCase()}.`,
-    suggestion: "Observe color and displacement around hotspot.",
-    explain: "This view helps students connect index changes and model behavior."
+    conclusion: "已聚焦风险区段",
+    reason: `当前关注：${safeText(app.feaTeachingState.focusSection || "-").toUpperCase()}。`,
+    suggestion: "观察热点附近的颜色与变形。",
+    explain: "该视角有助于将指标变化与模型表现联系起来。"
   });
 }
 
@@ -807,10 +808,10 @@ export function replayFeaHistoryMarkRuntime(app, index) {
   app.refreshFeaTexts();
 
   setFeaNarrative(app, {
-    conclusion: `Replay keyframe T${index + 1}`,
-    reason: `Stress ${formatNum(mark.stress, 1)} MPa, disp ${formatNum(mark.disp, 3)} mm, risk ${safeText(mark.risk)}.`,
-    suggestion: "Compare with nearby keyframes to learn trend changes.",
-    explain: safeText(mark.diagnostics?.riskReason || "Trend replay.")
+    conclusion: `回放关键帧 T${index + 1}`,
+    reason: `应力 ${formatNum(mark.stress, 1)} MPa，位移 ${formatNum(mark.disp, 3)} mm，风险 ${safeText(mark.risk)}。`,
+    suggestion: "与相邻关键帧对比，理解趋势变化。",
+    explain: safeText(mark.diagnostics?.riskReason || "趋势回放。")
   });
 
   app.updateFeaVisual(performance.now());
@@ -819,10 +820,10 @@ export function replayFeaHistoryMarkRuntime(app, index) {
 export function refreshFeaTeachingUiRuntime(app) {
   const expanded = Boolean(app.feaTeachingState?.advancedExpanded);
   if (app.dom.feaAdvancedPanel) app.dom.feaAdvancedPanel.hidden = !expanded;
-  if (app.dom.btnToggleFeaAdvanced) app.dom.btnToggleFeaAdvanced.textContent = expanded ? "Hide Advanced" : "Show Advanced";
+  if (app.dom.btnToggleFeaAdvanced) app.dom.btnToggleFeaAdvanced.textContent = expanded ? "收起高级" : "展开高级";
 
   if (app.dom.btnFeaHotspot) {
-    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "ON" : "OFF";
+    app.dom.btnFeaHotspot.textContent = app.feaTeachingState.showHotspot ? "开" : "关";
     app.dom.btnFeaHotspot.setAttribute("aria-pressed", app.feaTeachingState.showHotspot ? "true" : "false");
     app.dom.btnFeaHotspot.classList.toggle("is-on", app.feaTeachingState.showHotspot);
   }
@@ -850,10 +851,10 @@ export function runFeaRuntime(app) {
   }
   updateFeaStepperUi(app);
   setFeaNarrative(app, {
-    conclusion: "Simulation running",
-    reason: "Computing stress and displacement fields with current load.",
-    suggestion: "Move to Observe step to inspect hotspot and trend changes.",
-    explain: "Use replay and risk focus to connect numeric changes with model color/deformation."
+    conclusion: "仿真运行中",
+    reason: "正在按当前载荷计算应力与位移场。",
+    suggestion: "进入「观察」步骤查看热点与趋势变化。",
+    explain: "结合回放与风险聚焦，将数值变化与云图/变形对应理解。"
   });
   app.updateFeaVisual(performance.now());
   app.log("FEA simulation started", {
@@ -921,4 +922,61 @@ export function updateFeaVisualRuntimeFacade(app, nowMs, deps) {
     drawFeaChartCore(app.dom.chart, app.feaHistory, app.feaTeachingState.selectedHistoryIndex);
     renderFeaHistoryMarks(app);
   }
+}
+
+export function prepareKinematicsTourFromLessonRuntime(app, lessonIndex = 2, deps) {
+  const { toFiniteNumber } = deps;
+  app.setTeachingStage("kinematics");
+  app.setKinematicsMode("ik");
+  const lessons = Array.isArray(app.config?.lessons) ? app.config.lessons : [];
+  const lesson = lessons[lessonIndex];
+  if (lesson?.target) {
+    if (app.dom.ikX) app.dom.ikX.value = String(toFiniteNumber(lesson.target.x, 195));
+    if (app.dom.ikY) app.dom.ikY.value = String(toFiniteNumber(lesson.target.y, -62));
+    if (app.dom.ikZ) app.dom.ikZ.value = String(toFiniteNumber(lesson.target.z, 205));
+  }
+  app.setKinematicsStep("input");
+  app.updateKinematicsReadout({ step: "input" });
+  if (app.dom.kinExplainText) {
+    app.dom.kinExplainText.textContent = "步骤 1：输入 L3 课时目标点，准备执行逆解。";
+  }
+}
+
+export function runKinematicsTeachingSequenceRuntime(app) {
+  const order = ["input", "reachable", "solve"];
+  for (const step of order) {
+    app.setKinematicsStep(step);
+  }
+  const explainMap = {
+    input: "步骤 1：已确认目标点。",
+    reachable: "步骤 2：检查目标是否在可达工作空间内。",
+    solve: "步骤 3：准备执行逆解并应用关节角。"
+  };
+  if (app.dom.kinExplainText) {
+    app.dom.kinExplainText.textContent = explainMap.solve;
+  }
+}
+
+export function runFeaTeachingSequenceRuntime(app, lessonIndex = 3) {
+  app.setTeachingStage("fea");
+  app.applyLesson(lessonIndex, true);
+  app.feaTeachingState.step = "setup";
+  updateFeaStepperUi(app);
+  setFeaNarrative(app, {
+    conclusion: "已载入 L4 极限工况",
+    reason: "高载荷姿态已应用，可进入计算与观察步骤。",
+    suggestion: "点击「运行有限元演示」查看云图。",
+    explain: "步骤 1：设置载荷与变形样式。"
+  });
+}
+
+export function advanceFeaTourToComputeRuntime(app) {
+  app.feaTeachingState.step = "compute";
+  updateFeaStepperUi(app);
+  setFeaNarrative(app, {
+    conclusion: "进入计算步骤",
+    reason: "步骤 2：将按当前载荷计算应力与位移场。",
+    suggestion: "运行演示以生成云图与指标。",
+    explain: "步骤 2：计算应力与位移场。"
+  });
 }

@@ -1,4 +1,4 @@
-﻿import * as THREE from "./vendor/three/three.module.js";
+import * as THREE from "./vendor/three/three.module.js";
 import { OrbitControls } from "./vendor/three/jsm/controls/OrbitControls.js";
 import { STLLoader } from "./vendor/three/jsm/loaders/STLLoader.js";
 import {
@@ -73,8 +73,8 @@ import {
   syncCalibrationInputsRuntime,
   writeSelectedJointRuntime
 } from "./modules/runtime_calibration.js";
-
-const TEACH_WEB_VERSION = "20260518-hotfix-model-visible";
+const TEACH_WEB_VERSION = "20260519-tour-guide";
+const TOUR_MODULE_URL = `./modules/runtime_tour_guide.js?v=20260519-tour-follow2`;
 const UI_STATE_STORAGE_KEY = "teach_front_ui_state_v1";
 const GATEWAY_URL_KEY = "teach_front_gateway_url";
 const ENTRY_MODE_KEY = "teach_front_entry_mode";
@@ -183,6 +183,8 @@ class TeachingDemoApp {
     this.hasRestoredCameraState = false;
     this.gatewayCheckWs = null;
     this.gatewayCheckToken = 0;
+    this.tour = null;
+    this.tourSuppressUiSave = false;
 
     this.dom = {};
   }
@@ -214,6 +216,21 @@ class TeachingDemoApp {
     this.updateKinematicsReadout({ step: "input" });
     this.animate(0);
     this.log("Teaching demo initialized");
+
+    await this.initTourGuide();
+  }
+
+  async initTourGuide() {
+    try {
+      const mod = await import(TOUR_MODULE_URL);
+      this.tour = mod.initTourGuideRuntime(this);
+      await this.tour.loadScript();
+      this.tour.showWelcomeIfNeeded();
+    } catch (err) {
+      this.log(`教学引导模块加载失败: ${err?.message || err}`);
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
   }
 
   cacheDom() {
@@ -230,6 +247,7 @@ class TeachingDemoApp {
     this.dom.btnGatewayRecheck = byId("btnGatewayRecheck");
     this.dom.btnGatewayBack = byId("btnGatewayBack");
 
+    this.dom.btnTourGuide = byId("btnTourGuide");
     this.dom.btnDemo = byId("btnDemo");
     this.dom.btnReset = byId("btnReset");
 
@@ -341,6 +359,11 @@ class TeachingDemoApp {
     });
 
     this.dom.btnReset?.addEventListener("click", () => this.resetPose());
+    this.dom.btnTourGuide?.addEventListener("click", () => {
+      this.startTourGuide({ fromWelcome: false }).catch((err) => {
+        this.log(`教学引导启动失败: ${err?.message || err}`);
+      });
+    });
     this.dom.btnDemo?.addEventListener("click", () => this.runOneClickDemo());
     this.dom.btnGatewayRecheck?.addEventListener("click", () => this.checkGatewayStatus(true));
     this.dom.btnGatewayBack?.addEventListener("click", () => this.goBackToGateway());
@@ -483,6 +506,7 @@ class TeachingDemoApp {
       return;
     }
     this.gatewayCheckWs = ws;
+    let opened = false;
 
     const clearProbe = () => {
       if (token !== this.gatewayCheckToken) {
@@ -503,6 +527,7 @@ class TeachingDemoApp {
       if (token !== this.gatewayCheckToken) {
         return;
       }
+      opened = true;
       clearTimeout(timeoutId);
       this.setGatewayStatus("网关在线，可继续教学。", "ok", `网关地址: ${url}`);
       if (triggeredByUser) {
@@ -530,6 +555,9 @@ class TeachingDemoApp {
         return;
       }
       clearTimeout(timeoutId);
+      if (!opened) {
+        this.setGatewayStatus("网关不可达，请返回连接页重新连接。", "bad", `网关地址: ${url}`);
+      }
       clearProbe();
     });
   }
@@ -997,7 +1025,25 @@ class TeachingDemoApp {
     }, Math.max(0, Number(delayMs) || 0));
   }
 
+  async startTourGuide(options) {
+    if (!this.tour) {
+      await this.initTourGuide();
+    }
+    if (!this.tour) {
+      this.log("教学引导不可用，请刷新页面重试");
+      return;
+    }
+    return this.tour.startTour(options || {});
+  }
+
+  stopTourGuide(options) {
+    return this.tour?.stopTour(options || {});
+  }
+
   saveUiState() {
+    if (this.tourSuppressUiSave) {
+      return;
+    }
     try {
       const jointAngles = {};
       for (const def of this.jointDefs.values()) {
@@ -1205,7 +1251,7 @@ class TeachingDemoApp {
         if (Number.isFinite(hIdx)) this.feaTeachingState.selectedHistoryIndex = hIdx;
       }
       if (this.dom.btnPauseFea) {
-        this.dom.btnPauseFea.textContent = this.fea.running ? "Pause Deformation" : "Resume Deformation";
+        this.dom.btnPauseFea.textContent = this.fea.running ? "暂停形变动画" : "恢复形变动画";
       }
       this.refreshFeaTexts();
       this.refreshFeaTeachingUi();

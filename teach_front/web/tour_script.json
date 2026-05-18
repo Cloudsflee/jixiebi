@@ -1,0 +1,216 @@
+{
+  "version": 1,
+  "title": "机械臂教学引导",
+  "steps": [
+    {
+      "id": "intro-stages",
+      "phase": "intro",
+      "stage": "control",
+      "target": ".stage-nav",
+      "placement": "right",
+      "title": "三大教学阶段",
+      "body": "本系统按「控制示教 → 正逆解实验 → 有限元演示」循序渐进。侧栏可随时切换阶段，本引导将带你完整体验。"
+    },
+    {
+      "id": "intro-viewport",
+      "phase": "intro",
+      "stage": "control",
+      "target": "#viewport",
+      "placement": "left",
+      "title": "三维数字孪生视口",
+      "body": "中央 3D 视图实时反映关节姿态。注意 HUD 中的末端位置与当前模式说明。"
+    },
+    {
+      "id": "control-joints",
+      "phase": "control",
+      "stage": "control",
+      "target": "#jointControls",
+      "placement": "top",
+      "title": "关节拖动示教",
+      "body": "拖动滑条可直观感受各关节运动。接下来将轻微调整 J2 以展示联动效果。",
+      "action": "nudgeJ2",
+      "actionDelay": 200
+    },
+    {
+      "id": "control-lessons",
+      "phase": "control",
+      "stage": "control",
+      "target": "#lessonList",
+      "placement": "top",
+      "title": "教学课时列表",
+      "body": "L1–L4 对应从零位认知到极限工况的递进课时。将载入 L1「零位与坐标系认知」。",
+      "action": "applyLesson0",
+      "actionDelay": 300
+    },
+    {
+      "id": "control-speech",
+      "phase": "control",
+      "stage": "control",
+      "target": "#lessonSpeech",
+      "placement": "top",
+      "title": "课时讲解文案",
+      "body": "此处显示当前课时的教学解说，可与 3D 姿态对照理解。"
+    },
+    {
+      "id": "control-next",
+      "phase": "control",
+      "stage": "control",
+      "target": "#btnNextLesson",
+      "placement": "top",
+      "title": "切换下一课时",
+      "body": "使用「下一步」可顺序浏览课时。将自动载入 L2「关节解耦与联动」。",
+      "action": "applyLesson1",
+      "actionDelay": 300
+    },
+    {
+      "id": "control-axes",
+      "phase": "control",
+      "stage": "control",
+      "target": "#toggleAxes",
+      "placement": "top",
+      "title": "旋转轴可视化",
+      "body": "勾选「显示旋转轴线」可在模型上看到各关节旋转轴，便于建立空间直觉。"
+    },
+    {
+      "id": "kin-stage",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#btnStageKinematics",
+      "placement": "right",
+      "title": "进入正逆解实验",
+      "body": "第二阶段学习运动学：给定末端目标点，求解关节角并验证精度。"
+    },
+    {
+      "id": "kin-input",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": ".kin-input-col",
+      "placement": "bottom",
+      "title": "目标点输入",
+      "body": "在逆解模式下输入末端目标坐标。将载入 L3 课时目标点作为实验输入。",
+      "action": "prepareKinL3",
+      "actionDelay": 250
+    },
+    {
+      "id": "kin-steps",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#kinSteps",
+      "placement": "bottom",
+      "title": "四步求解流程",
+      "body": "标准流程：输入 → 可达性 → 求解 → 验证。将依次高亮前三步。",
+      "action": "kinFlowToSolve",
+      "actionDelay": 400
+    },
+    {
+      "id": "kin-solve",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#btnSolveIK",
+      "placement": "bottom",
+      "title": "执行逆解",
+      "body": "点击执行逆解将根据目标点生成关节角，机械臂将运动到对应姿态。",
+      "action": "solveIk",
+      "actionDelay": 500
+    },
+    {
+      "id": "kin-candidates",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#kinCandidateList",
+      "placement": "top",
+      "title": "肘上 / 肘下候选解",
+      "body": "逆解可能存在多组解，可切换候选方案观察不同肘部构型。"
+    },
+    {
+      "id": "kin-validate",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#kinError",
+      "placement": "top",
+      "title": "验证末端误差",
+      "body": "通过反向验证对比目标点与正运动学结果，理解求解精度。",
+      "action": "reverseCheck",
+      "actionDelay": 300
+    },
+    {
+      "id": "kin-summary",
+      "phase": "kinematics",
+      "stage": "kinematics",
+      "target": "#kinExplainText",
+      "placement": "top",
+      "title": "运动学小结",
+      "body": "完成四步流后，您已掌握从目标点到关节角、再到误差验证的完整闭环。"
+    },
+    {
+      "id": "fea-stage",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#btnStageFea",
+      "placement": "right",
+      "title": "进入有限元演示",
+      "body": "第三阶段在伪有限元模型上观察应力、位移与风险指标，联系云图颜色变化。"
+    },
+    {
+      "id": "fea-load",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaLoad",
+      "placement": "top",
+      "title": "载荷与变形设置",
+      "body": "将载入 L4 极限工况姿态与高载荷，作为有限元演示输入。",
+      "action": "feaL4",
+      "actionDelay": 600
+    },
+    {
+      "id": "fea-stepper",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaStepper",
+      "placement": "bottom",
+      "title": "有限元四步流",
+      "body": "设置 → 计算 → 观察 → 解释。接下来进入「计算」步骤。",
+      "action": "feaToCompute",
+      "actionDelay": 300
+    },
+    {
+      "id": "fea-run",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#btnRunFea",
+      "placement": "top",
+      "title": "运行有限元演示",
+      "body": "运行后将更新云图着色、变形动画及右侧核心指标。",
+      "action": "runFea",
+      "actionDelay": 800
+    },
+    {
+      "id": "fea-metrics",
+      "phase": "fea",
+      "stage": "fea",
+      "target": ".fea-metrics",
+      "placement": "left",
+      "title": "核心风险指标",
+      "body": "关注最大应力、位移、安全系数与风险等级，理解指标与云图颜色的对应关系。"
+    },
+    {
+      "id": "fea-chart",
+      "phase": "fea",
+      "stage": "fea",
+      "target": "#feaChart",
+      "placement": "top",
+      "title": "应力 / 位移趋势",
+      "body": "趋势图记录仿真过程中的应力与位移变化，便于课堂讲解动态响应。"
+    },
+    {
+      "id": "complete",
+      "phase": "complete",
+      "stage": "fea",
+      "target": null,
+      "placement": "center",
+      "title": "引导完成",
+      "body": "您已完成三大核心功能的完整体验。可随时点击侧栏「教学引导」重新开始。",
+      "isComplete": true
+    }
+  ]
+}

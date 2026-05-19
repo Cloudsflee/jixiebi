@@ -16,20 +16,17 @@ Outputs:
 from __future__ import annotations
 
 import argparse
-import math
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
 
 # Use non-interactive backend for headless environments.
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
 
 CARBON_FACTOR_KG_PER_KWH = 0.524  # configurable grid emission factor
 SERIES_ORDER = [
@@ -162,7 +159,9 @@ def stage_frame(duration_s: int) -> pd.DataFrame:
     return raw
 
 
-def stage_modulators(stage_name: str, t_local: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def stage_modulators(
+    stage_name: str, t_local: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     # returns motion_factor, load_factor curves
     if stage_name == "待机准备":
         motion = 0.18 + 0.04 * np.sin(t_local / 6.0)
@@ -202,10 +201,10 @@ def synthesize_for_model(
 
         motion, load = stage_modulators(stage, local_t)
         # joint speed/load composition
-        j1_speed = (0.35 + 0.50 * motion + 0.07 * np.sin(local_t / 3.4))
-        j2_speed = (0.32 + 0.65 * motion + 0.11 * np.sin(local_t / 4.1 + 1.2))
-        j3_speed = (0.25 + 0.58 * motion + 0.08 * np.sin(local_t / 3.8 + 2.1))
-        j4_speed = (0.15 + 0.40 * motion + 0.06 * np.sin(local_t / 2.7 + 0.6))
+        j1_speed = 0.35 + 0.50 * motion + 0.07 * np.sin(local_t / 3.4)
+        j2_speed = 0.32 + 0.65 * motion + 0.11 * np.sin(local_t / 4.1 + 1.2)
+        j3_speed = 0.25 + 0.58 * motion + 0.08 * np.sin(local_t / 3.8 + 2.1)
+        j4_speed = 0.15 + 0.40 * motion + 0.06 * np.sin(local_t / 2.7 + 0.6)
         speed = np.vstack([j1_speed, j2_speed, j3_speed, j4_speed]).T
 
         j1_load = 0.20 + 0.40 * load + 0.05 * np.sin(local_t / 8.5)
@@ -236,7 +235,9 @@ def synthesize_for_model(
         )
         voltage = np.clip(voltage, 10.9, 12.5)
 
-        thermal_penalty = 1.0 + profile.thermal_drift * np.clip((temp_c_arr - 33.0) / 25.0, 0.0, 1.0)
+        thermal_penalty = 1.0 + profile.thermal_drift * np.clip(
+            (temp_c_arr - 33.0) / 25.0, 0.0, 1.0
+        )
 
         base_current = (
             profile.base_current_a
@@ -282,7 +283,9 @@ def synthesize_for_model(
     df = pd.concat(records, ignore_index=True)
     df["energy_wh_step"] = df["power_w"] / 3600.0
     df["cumulative_energy_wh"] = df["energy_wh_step"].cumsum()
-    df["estimated_carbon_kg"] = df["cumulative_energy_wh"] / 1000.0 * CARBON_FACTOR_KG_PER_KWH
+    df["estimated_carbon_kg"] = (
+        df["cumulative_energy_wh"] / 1000.0 * CARBON_FACTOR_KG_PER_KWH
+    )
     df["unit_task_energy_wh"] = df["cumulative_energy_wh"] / max(1, run_id)
     return df
 
@@ -292,7 +295,9 @@ def generate_dataset(seed: int, duration_s: int, runs: int) -> pd.DataFrame:
     all_rows: List[pd.DataFrame] = []
 
     for run_id in range(1, runs + 1):
-        start_time = pd.Timestamp("2026-05-01 09:00:00") + pd.Timedelta(minutes=(run_id - 1) * 18)
+        start_time = pd.Timestamp("2026-05-01 09:00:00") + pd.Timedelta(
+            minutes=(run_id - 1) * 18
+        )
         time_index = pd.date_range(start_time, periods=duration_s, freq="1s")
         for name in SERIES_ORDER:
             model_seed = rng.integers(1, 10_000_000)
@@ -310,40 +315,42 @@ def generate_dataset(seed: int, duration_s: int, runs: int) -> pd.DataFrame:
     return df
 
 
-def build_kpis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    run_kpis = (
-        df.groupby(["series", "run_id"], as_index=False)
-        .agg(
-            total_energy_wh=("energy_wh_step", "sum"),
-            mean_power_w=("power_w", "mean"),
-            peak_power_w=("power_w", "max"),
-            power_std_w=("power_w", "std"),
-            spike_count=("spike_flag", "sum"),
-            avg_voltage_v=("supply_voltage_v", "mean"),
-            avg_current_a=("current_a", "mean"),
-            avg_temp_c=("temperature_c", "mean"),
-        )
+def build_kpis(
+    df: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    run_kpis = df.groupby(["series", "run_id"], as_index=False).agg(
+        total_energy_wh=("energy_wh_step", "sum"),
+        mean_power_w=("power_w", "mean"),
+        peak_power_w=("power_w", "max"),
+        power_std_w=("power_w", "std"),
+        spike_count=("spike_flag", "sum"),
+        avg_voltage_v=("supply_voltage_v", "mean"),
+        avg_current_a=("current_a", "mean"),
+        avg_temp_c=("temperature_c", "mean"),
     )
-    run_kpis["power_cv"] = run_kpis["power_std_w"] / run_kpis["mean_power_w"].replace(0, np.nan)
+    run_kpis["power_cv"] = run_kpis["power_std_w"] / run_kpis["mean_power_w"].replace(
+        0, np.nan
+    )
     run_kpis["unit_task_energy_wh"] = run_kpis["total_energy_wh"]
-    run_kpis["estimated_carbon_kg"] = run_kpis["total_energy_wh"] / 1000.0 * CARBON_FACTOR_KG_PER_KWH
+    run_kpis["estimated_carbon_kg"] = (
+        run_kpis["total_energy_wh"] / 1000.0 * CARBON_FACTOR_KG_PER_KWH
+    )
 
-    summary = (
-        run_kpis.groupby("series", as_index=False)
-        .agg(
-            total_energy_wh=("total_energy_wh", "mean"),
-            peak_power_w=("peak_power_w", "mean"),
-            mean_power_w=("mean_power_w", "mean"),
-            power_cv=("power_cv", "mean"),
-            spike_count=("spike_count", "mean"),
-            unit_task_energy_wh=("unit_task_energy_wh", "mean"),
-            estimated_carbon_kg=("estimated_carbon_kg", "mean"),
-        )
+    summary = run_kpis.groupby("series", as_index=False).agg(
+        total_energy_wh=("total_energy_wh", "mean"),
+        peak_power_w=("peak_power_w", "mean"),
+        mean_power_w=("mean_power_w", "mean"),
+        power_cv=("power_cv", "mean"),
+        spike_count=("spike_count", "mean"),
+        unit_task_energy_wh=("unit_task_energy_wh", "mean"),
+        estimated_carbon_kg=("estimated_carbon_kg", "mean"),
     )
 
     baseline = summary.loc[summary["series"] == "本机-优化前"].iloc[0]
     summary["energy_saving_rate_pct"] = (
-        (baseline["total_energy_wh"] - summary["total_energy_wh"]) / baseline["total_energy_wh"] * 100.0
+        (baseline["total_energy_wh"] - summary["total_energy_wh"])
+        / baseline["total_energy_wh"]
+        * 100.0
     )
     summary["carbon_reduction_rate_pct"] = (
         (baseline["estimated_carbon_kg"] - summary["estimated_carbon_kg"])
@@ -351,9 +358,8 @@ def build_kpis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
         * 100.0
     )
 
-    stage_energy = (
-        df.groupby(["series", "stage"], as_index=False)
-        .agg(stage_energy_wh=("energy_wh_step", "sum"))
+    stage_energy = df.groupby(["series", "stage"], as_index=False).agg(
+        stage_energy_wh=("energy_wh_step", "sum")
     )
     joint_energy = (
         df.assign(
@@ -362,15 +368,21 @@ def build_kpis(df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFra
             J3_energy_wh=df["J3_power_w"] / 3600.0,
             J4_energy_wh=df["J4_power_w"] / 3600.0,
         )
-        .groupby("series", as_index=False)[["J1_energy_wh", "J2_energy_wh", "J3_energy_wh", "J4_energy_wh"]]
+        .groupby("series", as_index=False)[
+            ["J1_energy_wh", "J2_energy_wh", "J3_energy_wh", "J4_energy_wh"]
+        ]
         .sum()
         .melt(id_vars="series", var_name="joint", value_name="joint_energy_wh")
     )
-    joint_energy["joint"] = joint_energy["joint"].str.replace("_energy_wh", "", regex=False)
+    joint_energy["joint"] = joint_energy["joint"].str.replace(
+        "_energy_wh", "", regex=False
+    )
 
     summary = summary.set_index("series").loc[SERIES_ORDER].reset_index()
     run_kpis = run_kpis.set_index("series").loc[SERIES_ORDER].reset_index()
-    stage_energy["stage"] = pd.Categorical(stage_energy["stage"], [s for s, _ in STAGES], ordered=True)
+    stage_energy["stage"] = pd.Categorical(
+        stage_energy["stage"], [s for s, _ in STAGES], ordered=True
+    )
     stage_energy = stage_energy.sort_values(["series", "stage"], kind="stable")
     joint_energy["joint"] = pd.Categorical(joint_energy["joint"], JOINTS, ordered=True)
     joint_energy = joint_energy.sort_values(["series", "joint"], kind="stable")
@@ -410,8 +422,20 @@ def plot_time_series(df: pd.DataFrame, fig_dir: Path) -> None:
     fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
     for series in SERIES_ORDER:
         sub = run_df[run_df["series"] == series]
-        axes[0].plot(sub["sec"], sub["power_w"], label=series, color=color_map[series], linewidth=1.35)
-        axes[1].plot(sub["sec"], sub["current_a"], label=series, color=color_map[series], linewidth=1.2)
+        axes[0].plot(
+            sub["sec"],
+            sub["power_w"],
+            label=series,
+            color=color_map[series],
+            linewidth=1.35,
+        )
+        axes[1].plot(
+            sub["sec"],
+            sub["current_a"],
+            label=series,
+            color=color_map[series],
+            linewidth=1.2,
+        )
         axes[2].plot(
             sub["sec"],
             sub["cumulative_energy_wh"],
@@ -432,7 +456,9 @@ def plot_power_distribution(df: pd.DataFrame, fig_dir: Path) -> None:
     color_map = palette()
     fig, ax = plt.subplots(figsize=(12, 6))
     grouped = [df.loc[df["series"] == s, "power_w"].values for s in SERIES_ORDER]
-    bp = ax.boxplot(grouped, patch_artist=True, tick_labels=SERIES_ORDER, showfliers=True)
+    bp = ax.boxplot(
+        grouped, patch_artist=True, tick_labels=SERIES_ORDER, showfliers=True
+    )
     for patch, s in zip(bp["boxes"], SERIES_ORDER):
         patch.set_facecolor(color_map[s])
         patch.set_alpha(0.35)
@@ -445,7 +471,14 @@ def plot_power_distribution(df: pd.DataFrame, fig_dir: Path) -> None:
     for series in SERIES_ORDER:
         vals = df.loc[df["series"] == series, "power_w"].values
         kde = pd.Series(vals).rolling(20, min_periods=1).mean().dropna()
-        ax2.hist(vals, bins=55, density=True, alpha=0.25, color=color_map[series], label=f"{series}-直方")
+        ax2.hist(
+            vals,
+            bins=55,
+            density=True,
+            alpha=0.25,
+            color=color_map[series],
+            label=f"{series}-直方",
+        )
         ax2.plot(
             np.sort(kde.values),
             np.linspace(0, 0.2, len(kde)),
@@ -462,14 +495,24 @@ def plot_power_distribution(df: pd.DataFrame, fig_dir: Path) -> None:
 
 def plot_stage_energy(stage_energy: pd.DataFrame, fig_dir: Path) -> None:
     color_map = palette()
-    pivot = stage_energy.pivot(index="series", columns="stage", values="stage_energy_wh").loc[SERIES_ORDER]
+    pivot = stage_energy.pivot(
+        index="series", columns="stage", values="stage_energy_wh"
+    ).loc[SERIES_ORDER]
     fig, ax = plt.subplots(figsize=(12, 7))
     bottom = np.zeros(len(pivot))
     stage_names = [s for s, _ in STAGES]
     stage_colors = ["#5B8FF9", "#61DDAA", "#F6BD16", "#7262FD", "#78D3F8"]
     for stg, c in zip(stage_names, stage_colors):
         vals = pivot[stg].values
-        ax.bar(pivot.index, vals, bottom=bottom, label=stg, color=c, alpha=0.85, edgecolor="white")
+        ax.bar(
+            pivot.index,
+            vals,
+            bottom=bottom,
+            label=stg,
+            color=c,
+            alpha=0.85,
+            edgecolor="white",
+        )
         bottom += vals
     ax.set_title("各任务阶段能耗堆叠对比")
     ax.set_ylabel("阶段能耗 (Wh)")
@@ -521,7 +564,13 @@ def plot_efficiency(summary: pd.DataFrame, fig_dir: Path) -> None:
     fig, ax1 = plt.subplots(figsize=(12, 6))
     x = np.arange(len(SERIES_ORDER))
     vals = summary.set_index("series").loc[SERIES_ORDER]["unit_task_energy_wh"].values
-    bars = ax1.bar(x, vals, color=[color_map[s] for s in SERIES_ORDER], alpha=0.82, label="单位任务能耗")
+    bars = ax1.bar(
+        x,
+        vals,
+        color=[color_map[s] for s in SERIES_ORDER],
+        alpha=0.82,
+        label="单位任务能耗",
+    )
     ax1.set_ylabel("单位任务能耗 (Wh)")
     ax1.set_xticks(x)
     ax1.set_xticklabels(SERIES_ORDER)
@@ -529,7 +578,14 @@ def plot_efficiency(summary: pd.DataFrame, fig_dir: Path) -> None:
 
     ax2 = ax1.twinx()
     sub = summary.set_index("series").loc[SERIES_ORDER]
-    ax2.plot(x, sub["energy_saving_rate_pct"].values, color="#F39C12", marker="o", linewidth=2.0, label="节能率")
+    ax2.plot(
+        x,
+        sub["energy_saving_rate_pct"].values,
+        color="#F39C12",
+        marker="o",
+        linewidth=2.0,
+        label="节能率",
+    )
     ax2.plot(
         x,
         sub["carbon_reduction_rate_pct"].values,
@@ -548,19 +604,36 @@ def plot_efficiency(summary: pd.DataFrame, fig_dir: Path) -> None:
     ax1.legend(lines, labels, loc="upper right")
 
     for rect, v in zip(bars, vals):
-        ax1.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.1, f"{v:.2f}", ha="center", va="bottom", fontsize=9)
+        ax1.text(
+            rect.get_x() + rect.get_width() / 2,
+            rect.get_height() + 0.1,
+            f"{v:.2f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
     fig_save(fig, fig_dir, "07_单位任务能耗_节能率_降碳率")
 
 
 def plot_stability(summary: pd.DataFrame, fig_dir: Path) -> None:
     sub = summary.set_index("series").loc[SERIES_ORDER]
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.3))
-    axes[0].bar(sub.index, sub["spike_count"], color=["#e76f51", "#2a9d8f", "#457b9d", "#b565a7"], alpha=0.88)
+    axes[0].bar(
+        sub.index,
+        sub["spike_count"],
+        color=["#e76f51", "#2a9d8f", "#457b9d", "#b565a7"],
+        alpha=0.88,
+    )
     axes[0].set_title("峰值尖峰次数（均值）")
     axes[0].set_ylabel("次数 / 任务")
     axes[0].tick_params(axis="x", rotation=15)
 
-    axes[1].bar(sub.index, sub["power_cv"] * 100.0, color=["#e76f51", "#2a9d8f", "#457b9d", "#b565a7"], alpha=0.88)
+    axes[1].bar(
+        sub.index,
+        sub["power_cv"] * 100.0,
+        color=["#e76f51", "#2a9d8f", "#457b9d", "#b565a7"],
+        alpha=0.88,
+    )
     axes[1].set_title("功率波动率（CV）")
     axes[1].set_ylabel("CV (%)")
     axes[1].tick_params(axis="x", rotation=15)
@@ -582,11 +655,24 @@ def plot_carbon(summary: pd.DataFrame, fig_dir: Path) -> None:
     ax.tick_params(axis="x", rotation=15)
     for rect in bars:
         h = rect.get_height()
-        ax.text(rect.get_x() + rect.get_width() / 2, h + 0.6, f"{h:.1f}", ha="center", va="bottom", fontsize=9)
+        ax.text(
+            rect.get_x() + rect.get_width() / 2,
+            h + 0.6,
+            f"{h:.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
     fig_save(fig, fig_dir, "09_碳排估算对比")
 
 
-def generate_figures(df: pd.DataFrame, summary: pd.DataFrame, stage_energy: pd.DataFrame, joint_energy: pd.DataFrame, fig_dir: Path) -> None:
+def generate_figures(
+    df: pd.DataFrame,
+    summary: pd.DataFrame,
+    stage_energy: pd.DataFrame,
+    joint_energy: pd.DataFrame,
+    fig_dir: Path,
+) -> None:
     plot_time_series(df, fig_dir)
     plot_power_distribution(df, fig_dir)
     plot_stage_energy(stage_energy, fig_dir)
@@ -657,11 +743,24 @@ def write_talk_track(root: Path) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate energy dataset and visual assets.")
-    parser.add_argument("--seed", type=int, default=20260518, help="Random seed for reproducibility.")
-    parser.add_argument("--duration", type=int, default=600, help="Seconds per task run (recommended 480~720).")
-    parser.add_argument("--runs", type=int, default=8, help="Number of runs per series.")
-    parser.add_argument("--output", type=str, default="energy", help="Output root directory.")
+    parser = argparse.ArgumentParser(
+        description="Generate energy dataset and visual assets."
+    )
+    parser.add_argument(
+        "--seed", type=int, default=20260518, help="Random seed for reproducibility."
+    )
+    parser.add_argument(
+        "--duration",
+        type=int,
+        default=600,
+        help="Seconds per task run (recommended 480~720).",
+    )
+    parser.add_argument(
+        "--runs", type=int, default=8, help="Number of runs per series."
+    )
+    parser.add_argument(
+        "--output", type=str, default="energy", help="Output root directory."
+    )
     parser.add_argument(
         "--style",
         type=str,
@@ -693,7 +792,9 @@ def main() -> None:
 
     print(f"[OK] Generated data and figures under: {paths['root']}")
     print(f"[OK] time_series rows: {len(df)}")
-    print(f"[OK] figures count: {len(list(paths['fig'].glob('*.png')))} png + {len(list(paths['fig'].glob('*.svg')))} svg")
+    print(
+        f"[OK] figures count: {len(list(paths['fig'].glob('*.png')))} png + {len(list(paths['fig'].glob('*.svg')))} svg"
+    )
 
 
 if __name__ == "__main__":

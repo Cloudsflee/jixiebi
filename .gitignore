@@ -48,3 +48,7 @@ Release/
 # *.gltf
 # *.obj
 # *.stl
+
+# 发布前归档候选
+*.zip
+.tmp_three_vendor/

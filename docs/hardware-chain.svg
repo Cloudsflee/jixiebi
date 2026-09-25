@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520">
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/></marker></defs>
+  <rect width="1400" height="520" fill="#f6f8fc"/>
+  <text x="60" y="62" font-family="Microsoft YaHei,Arial" font-size="32" font-weight="700" fill="#172033">机械臂硬件与软件链路</text>
+  <text x="60" y="94" font-family="Microsoft YaHei,Arial" font-size="16" fill="#667085">GCC 固件 → 蓝牙/串口 → 总线舵机；网页控制与 URDF 作为联调入口</text>
+  <g font-family="Microsoft YaHei,Arial" font-size="19" text-anchor="middle">
+    <rect x="60" y="180" width="230" height="130" rx="18" fill="#e8f0ff" stroke="#8fb2ff"/><text x="175" y="225" fill="#173b82">front/web</text><text x="175" y="260" font-size="15" fill="#475467">Three.js 控制页</text>
+    <rect x="370" y="180" width="230" height="130" rx="18" fill="#e9fbf5" stroke="#7ad7b5"/><text x="485" y="225" fill="#087443">gateway</text><text x="485" y="260" font-size="15" fill="#475467">串口 / WebSocket</text>
+    <rect x="680" y="180" width="230" height="130" rx="18" fill="#fff3df" stroke="#f4b65f"/><text x="795" y="225" fill="#9a4b00">STM32F103</text><text x="795" y="260" font-size="15" fill="#475467">USER + CORE 固件</text>
+    <rect x="990" y="180" width="230" height="130" rx="18" fill="#f3eaff" stroke="#bf9bf5"/><text x="1105" y="225" fill="#6530a4">总线舵机</text><text x="1105" y="260" font-size="15" fill="#475467">蓝牙 / 动力执行</text>
+  </g>
+  <g stroke="#2563eb" stroke-width="4" fill="none" marker-end="url(#arrow)"><path d="M290 245 H360"/><path d="M600 245 H670"/><path d="M910 245 H980"/></g>
+  <rect x="330" y="380" width="740" height="74" rx="16" fill="#fff" stroke="#dbe3ef"/>
+  <text x="700" y="425" text-anchor="middle" font-family="Microsoft YaHei,Arial" font-size="17" fill="#526075">gcc/Makefile：编译、清理、可选 COM 口烧录；SuArmT/：URDF 与数字孪生验证</text>
+</svg>
